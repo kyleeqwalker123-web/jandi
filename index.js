@@ -13,6 +13,7 @@ io.on('connection', (socket) => {
     if (!roomData[room]) {
       roomData[room] = { messages: [], currentVideo: null };
     }
+    // Send history and video state to the user joining
     if (roomData[room].messages.length > 0) socket.emit('load history', roomData[room].messages);
     if (roomData[room].currentVideo) socket.emit('sync video', roomData[room].currentVideo);
   });
