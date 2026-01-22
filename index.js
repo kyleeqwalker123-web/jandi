@@ -13,7 +13,6 @@ io.on('connection', (socket) => {
     if (!roomData[room]) {
       roomData[room] = { messages: [], currentVideo: null };
     }
-    // Send history and video state to the user joining
     if (roomData[room].messages.length > 0) socket.emit('load history', roomData[room].messages);
     if (roomData[room].currentVideo) socket.emit('sync video', roomData[room].currentVideo);
   });
@@ -21,18 +20,13 @@ io.on('connection', (socket) => {
   socket.on('chat message', (data) => {
     if (roomData[data.room]) {
       roomData[data.room].messages.push(data);
-      if (roomData[data.room].messages.length > 50) roomData[data.room].messages.shift();
     }
     io.to(data.room).emit('chat message', data);
   });
 
   socket.on('play video', (data) => {
-    if (roomData[data.room]) roomData[data.room].currentVideo = data.videoId;
-    io.to(data.room).emit('sync video', data.videoId);
-  });
-
-  socket.on('yt_control', (data) => {
-    io.to(data.room).emit('yt_action', data);
+    if (roomData[data.room]) roomData[data.room].currentVideo = data;
+    io.to(data.room).emit('sync video', data);
   });
 
   socket.on('send location', (data) => {
