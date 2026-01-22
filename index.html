@@ -3,45 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>J & I Private Hub</title>
+    <title>J & I Hub</title>
     <style>
         :root { --accent: #ff758c; --glass: rgba(255, 255, 255, 0.12); }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        
         body { 
             font-family: -apple-system, system-ui, sans-serif; background: #000; color: white; margin: 0; 
             height: 100dvh; width: 100vw; overflow: hidden;
             background-image: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url('https://images.unsplash.com/photo-1464802686167-b939a67e06a1?auto=format&fit=crop&q=80&w=2000');
             background-size: cover; background-position: center;
         }
-
         #setup { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%; padding: 30px; }
         #chat { display: none; flex-direction: column; height: 100dvh; }
-
-        /* Widgets Area */
         .widget-bar { background: rgba(0,0,0,0.7); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255,255,255,0.1); }
         #yt-player { width: 100%; height: 0; transition: height 0.3s; border: none; }
         .controls { display: flex; gap: 8px; padding: 10px; overflow-x: auto; scrollbar-width: none; }
         .btn-s { background: var(--glass); border: none; color: white; padding: 8px 12px; border-radius: 8px; font-size: 12px; white-space: nowrap; font-weight: 500; }
-
-        #messages { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; -webkit-overflow-scrolling: touch; }
+        #messages { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
         .msg { padding: 12px 16px; border-radius: 20px; max-width: 85%; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
         .my-msg { background: rgba(255, 117, 140, 0.6); align-self: flex-end; border-bottom-right-radius: 4px; }
         .their-msg { background: var(--glass); align-self: flex-start; border-bottom-left-radius: 4px; }
-        
         .secret { filter: blur(10px); cursor: pointer; }
         .revealed { filter: blur(0) !important; }
-
         #typing { font-size: 11px; padding: 5px 20px; height: 20px; color: var(--accent); opacity: 0; }
-
-        .input-area { 
-            background: rgba(10,10,10,0.9); padding: 12px 15px; 
-            padding-bottom: calc(12px + env(safe-area-inset-bottom));
-            display: flex; gap: 10px; align-items: center;
-        }
+        .input-area { background: rgba(10,10,10,0.9); padding: 12px 15px; padding-bottom: calc(12px + env(safe-area-inset-bottom)); display: flex; gap: 10px; align-items: center; }
         #input { flex: 1; background: var(--glass); border: none; color: white; padding: 12px 18px; border-radius: 25px; font-size: 16px; outline: none; }
         .send-btn { background: var(--accent); color: white; border: none; width: 42px; height: 42px; border-radius: 50%; font-weight: bold; font-size: 20px; }
-
         @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
     </style>
 </head>
@@ -67,7 +54,6 @@
                 <button class="btn-s" style="background:#ff4757" onclick="sendBuzz()">⚡ BUZZ</button>
             </div>
         </div>
-
         <ul id="messages"></ul>
         <div id="typing">... is typing</div>
         <form id="form" class="input-area">
@@ -76,12 +62,20 @@
         </form>
     </div>
 
+    <audio id="msgSound" src="https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3" preload="auto"></audio>
+    <audio id="buzzSound" src="https://assets.mixkit.co/active_storage/sfx/2955/2955-preview.mp3" preload="auto"></audio>
+
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script>
         const socket = io(); 
         let currentRoom = "", myLabel = "", secretMode = false, tTime;
+        const msgSound = document.getElementById('msgSound');
+        const buzzSound = document.getElementById('buzzSound');
 
         function join() {
+            // Mobile audio unlock
+            msgSound.play().then(() => { msgSound.pause(); msgSound.currentTime = 0; });
+            
             const r = document.getElementById('roomInput').value;
             const p = document.getElementById('passInput').value;
             myLabel = document.getElementById('userSelect').value;
@@ -117,6 +111,7 @@
             navigator.geolocation.getCurrentPosition(myPos => {
                 const d = calcDist(myPos.coords.latitude, myPos.coords.longitude, data.lat, data.lon);
                 addMessageToUI({ user: 'System', msg: `${data.user} is ${d.toFixed(1)} miles away. 📍` });
+                msgSound.play();
             });
         });
 
@@ -137,11 +132,11 @@
         function sendBuzz() { socket.emit('send buzz', currentRoom); }
         socket.on('get buzzed', () => { 
             document.body.style.animation = "shake 0.4s"; 
+            buzzSound.play();
             if(navigator.vibrate) navigator.vibrate(300);
             setTimeout(() => document.body.style.animation = "", 400);
         });
 
-        // --- CORE CHAT ---
         function addMessageToUI(data) {
             const item = document.createElement('li');
             item.className = data.user === myLabel ? 'msg my-msg' : 'msg their-msg';
@@ -156,6 +151,12 @@
             item.innerHTML = `<span style="font-size:10px; display:block; opacity:0.6; margin-bottom:2px;">${data.user}</span>${data.msg}`;
             document.getElementById('messages').appendChild(item);
             document.getElementById('messages').scrollTop = 99999;
+            
+            // Soft Pop on new messages from other user
+            if (data.user !== myLabel && data.user !== 'System') {
+                msgSound.currentTime = 0;
+                msgSound.play();
+            }
         }
 
         document.getElementById('form').onsubmit = e => {
