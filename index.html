@@ -18,15 +18,14 @@
             background-size: cover; background-position: center; transition: background 1s ease;
         }
 
-        /* Login UI */
+        /* Vertical Setup UI */
         #setup { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%; padding: 20px; text-align: center; }
         .setup-card { width: 100%; max-width: 320px; background: rgba(255,255,255,0.08); backdrop-filter: blur(20px); padding: 25px; border-radius: 25px; border: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; gap: 15px; }
         .setup-input { width: 100%; padding: 15px; background: rgba(0,0,0,0.3); color: white; border: 1px solid rgba(255,255,255,0.1); border-radius: 15px; font-size: 16px; }
         .join-btn { width: 100%; padding: 16px; background: var(--accent); color: white; border: none; border-radius: 15px; font-size: 18px; font-weight: 600; }
 
-        /* Doodle Board */
-        #canvas-container { display: none; position: fixed; inset: 0; background: #fff; z-index: 2000; flex-direction: column; animation: slideUp 0.3s ease; }
-        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        /* Doodle Modal */
+        #canvas-container { display: none; position: fixed; inset: 0; background: #fff; z-index: 2000; flex-direction: column; }
         canvas { flex: 1; touch-action: none; background: #fff; }
         .canvas-tools { background: #f8f8f8; padding: 20px; display: flex; justify-content: space-around; border-top: 1px solid #ddd; }
 
@@ -51,6 +50,7 @@
         .input-area { background: rgba(10,10,10,0.9); padding: 15px; padding-bottom: calc(15px + env(safe-area-inset-bottom)); display: flex; gap: 12px; align-items: center; }
         #input { flex: 1; background: rgba(255,255,255,0.1); border: none; color: white; padding: 14px 20px; border-radius: 25px; font-size: 16px; }
 
+        /* Animation Layers */
         #animation-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1000; }
         .laser { position: absolute; height: 4px; background: linear-gradient(90deg, transparent, var(--accent), #fff); box-shadow: 0 0 15px var(--accent); animation: shoot 0.4s ease-out forwards; }
         @keyframes shoot { 0% { width: 0; transform: translateX(-100%) rotate(var(--deg)); opacity: 1; } 100% { width: 1000px; transform: translateX(100vw) rotate(var(--deg)); opacity: 0; } }
@@ -92,7 +92,7 @@
                 <button class="btn-s" onclick="openCanvas()">🎨 Doodle</button>
                 <button class="btn-s" onclick="promptVideo()">📺 Youtube</button>
                 <button class="btn-s" onclick="cycleTheme()">🌈 Theme</button>
-                <button class="btn-s" onclick="sendLocation()">📍 Distance</button>
+                <button class="btn-s" onclick="sendLocation()">📍 Dist.</button>
                 <button class="btn-s" onclick="socket.emit('heart_burst', currentRoom)">💖</button>
                 <button class="btn-s" style="background:#ff4757" onclick="socket.emit('send buzz', currentRoom)">⚡ BUZZ</button>
             </div>
@@ -115,7 +115,7 @@
         const themes = ['default', 'midnight', 'sunset', 'forest'];
         let themeIdx = 0;
 
-        // --- DOODLE LOGIC ---
+        // --- DOODLE ---
         const canvas = document.getElementById('doodleCanvas');
         const ctx = canvas.getContext('2d');
         let drawing = false;
@@ -135,10 +135,8 @@
         canvas.addEventListener('touchmove', e => { if(!drawing) return; const t = e.touches[0]; ctx.lineTo(t.clientX, t.clientY); ctx.stroke(); e.preventDefault(); });
         canvas.addEventListener('touchend', () => { drawing = false; });
 
-        // --- YOUTUBE LOGIC ---
-        function onYouTubeIframeAPIReady() {
-            player = new YT.Player('yt-player', { playerVars: { 'autoplay': 1, 'playsinline': 1, 'rel': 0 } });
-        }
+        // --- YOUTUBE ---
+        function onYouTubeIframeAPIReady() { player = new YT.Player('yt-player', { playerVars: { 'autoplay': 1, 'playsinline': 1 } }); }
         function promptVideo() {
             const url = prompt("Paste YouTube Link:");
             if(url) {
@@ -152,8 +150,8 @@
             else { container.style.height = "200px"; player.loadVideoById(data.videoId); }
         });
 
-        // --- CORE CHAT & ANIMATIONS ---
-        socket.on('chat message', (data) => {
+        // --- CORE UI HELPERS ---
+        function addMessageToUI(data) {
             const item = document.createElement('li');
             item.className = 'msg ' + (data.user === myLabel ? 'my-msg' : 'their-msg');
             let content = `<small style="display:block; font-size:10px; opacity:0.6; margin-bottom:3px;">${data.user}</small>`;
@@ -162,7 +160,11 @@
             item.innerHTML = content;
             document.getElementById('messages').appendChild(item);
             document.getElementById('messages').scrollTop = 99999;
+        }
 
+        // --- SOCKETS ---
+        socket.on('chat message', (data) => {
+            addMessageToUI(data);
             if (data.msg) {
                 const t = data.msg.toLowerCase();
                 if (t.includes('pew pew')) triggerLasers();
@@ -174,6 +176,23 @@
                 }
             }
         });
+
+        socket.on('load history', (history) => {
+            document.getElementById('messages').innerHTML = '';
+            history.forEach(data => addMessageToUI(data));
+        });
+
+        function join() {
+            const r = document.getElementById('roomInput').value;
+            const p = document.getElementById('passInput').value;
+            myLabel = document.getElementById('userSelect').value;
+            if (r && p) {
+                currentRoom = r + "_" + p;
+                document.getElementById('setup').style.display = 'none';
+                document.getElementById('chat').style.display = 'flex';
+                socket.emit('join room', { room: currentRoom, user: myLabel });
+            }
+        }
 
         function triggerLasers() {
             const layer = document.getElementById('animation-layer');
@@ -192,19 +211,6 @@
                 const s = document.createElement('div'); s.className = 'star'; s.innerHTML = '⭐';
                 s.style.left = Math.random()*100+'vw'; s.style.top = Math.random()*100+'vh';
                 layer.appendChild(s); setTimeout(()=>s.remove(), 2000);
-            }
-        }
-
-        // --- OTHER UTILITIES ---
-        function join() {
-            const r = document.getElementById('roomInput').value;
-            const p = document.getElementById('passInput').value;
-            myLabel = document.getElementById('userSelect').value;
-            if (r && p) {
-                currentRoom = r + "_" + p;
-                document.getElementById('setup').style.display = 'none';
-                document.getElementById('chat').style.display = 'flex';
-                socket.emit('join room', { room: currentRoom, user: myLabel });
             }
         }
 
