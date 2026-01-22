@@ -46,7 +46,7 @@
 
     <div id="chat">
         <div class="widget-bar">
-            <iframe id="yt-player" allow="autoplay"></iframe>
+            <iframe id="yt-player" allow="autoplay; encrypted-media" allowfullscreen></iframe>
             <div class="controls">
                 <button class="btn-s" onclick="promptVideo()">📺 Youtube</button>
                 <button class="btn-s" onclick="sendLocation()">📍 Distance Ping</button>
@@ -73,8 +73,9 @@
         const buzzSound = document.getElementById('buzzSound');
 
         function join() {
-            // Mobile audio unlock
+            // Mobile audio unlock for both sounds
             msgSound.play().then(() => { msgSound.pause(); msgSound.currentTime = 0; });
+            buzzSound.play().then(() => { buzzSound.pause(); buzzSound.currentTime = 0; });
             
             const r = document.getElementById('roomInput').value;
             const p = document.getElementById('passInput').value;
@@ -87,7 +88,6 @@
             }
         }
 
-        // --- FEATURES ---
         function promptVideo() {
             const url = prompt("Paste YouTube Link:");
             if(url) {
@@ -98,20 +98,21 @@
         socket.on('sync video', id => {
             const p = document.getElementById('yt-player');
             p.style.height = "200px";
-            p.src = `https://www.youtube.com/embed/${id}?autoplay=1`;
+            // Enabling JS API for better potential sync
+            p.src = `https://www.youtube.com/embed/${id}?autoplay=1&enablejsapi=1`;
+            msgSound.currentTime = 0;
+            msgSound.play();
         });
 
         function sendLocation() {
             navigator.geolocation.getCurrentPosition(pos => {
                 socket.emit('send location', { room: currentRoom, user: myLabel, lat: pos.coords.latitude, lon: pos.coords.longitude });
-                addMessageToUI({ user: 'System', msg: "Sent your location ping! 📍" });
             });
         }
         socket.on('receive location', data => {
             navigator.geolocation.getCurrentPosition(myPos => {
                 const d = calcDist(myPos.coords.latitude, myPos.coords.longitude, data.lat, data.lon);
                 addMessageToUI({ user: 'System', msg: `${data.user} is ${d.toFixed(1)} miles away. 📍` });
-                msgSound.play();
             });
         });
 
@@ -132,6 +133,7 @@
         function sendBuzz() { socket.emit('send buzz', currentRoom); }
         socket.on('get buzzed', () => { 
             document.body.style.animation = "shake 0.4s"; 
+            buzzSound.currentTime = 0;
             buzzSound.play();
             if(navigator.vibrate) navigator.vibrate(300);
             setTimeout(() => document.body.style.animation = "", 400);
@@ -144,16 +146,15 @@
                 item.classList.add('secret');
                 item.onclick = function() { 
                     this.classList.add('revealed'); 
-                    setTimeout(() => this.style.opacity = '0', 9000);
-                    setTimeout(() => this.remove(), 10000);
+                    setTimeout(() => { this.style.opacity = '0'; setTimeout(() => this.remove(), 500); }, 9000);
                 };
             }
             item.innerHTML = `<span style="font-size:10px; display:block; opacity:0.6; margin-bottom:2px;">${data.user}</span>${data.msg}`;
             document.getElementById('messages').appendChild(item);
             document.getElementById('messages').scrollTop = 99999;
             
-            // Soft Pop on new messages from other user
-            if (data.user !== myLabel && data.user !== 'System') {
+            // SYNCHRONIZED POP: Plays for both users whenever ANY message arrives
+            if (data.user !== 'System') {
                 msgSound.currentTime = 0;
                 msgSound.play();
             }
