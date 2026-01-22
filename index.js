@@ -18,8 +18,16 @@ io.on('connection', (socket) => {
         if (!roomData[room]) roomData[room] = { messages: [], users: {'J':'offline','I':'offline'}, theme: 'default' };
         roomData[room].users[user] = "online";
         io.to(room).emit('status_update', roomData[room].users);
-        socket.emit('set_theme', roomData[room].theme); // Sync theme on join
+        socket.emit('set_theme', roomData[room].theme);
         if (roomData[room].messages.length > 0) socket.emit('load history', roomData[room].messages);
+    });
+
+    socket.on('chat message', (data) => {
+        if (roomData[data.room]) {
+            roomData[data.room].messages.push(data);
+            if (roomData[data.room].messages.length > 500) roomData[data.room].messages.shift();
+        }
+        io.to(data.room).emit('chat message', data);
     });
 
     socket.on('change_theme', (data) => {
@@ -34,14 +42,6 @@ io.on('connection', (socket) => {
             roomData[userRoom].users[userLabel] = "offline";
             io.to(userRoom).emit('status_update', roomData[userRoom].users);
         }
-    });
-
-    socket.on('chat message', (data) => {
-        if (roomData[data.room]) {
-            roomData[data.room].messages.push(data);
-            if (roomData[data.room].messages.length > 500) roomData[data.room].messages.shift();
-        }
-        io.to(data.room).emit('chat message', data);
     });
 
     socket.on('typing', (data) => socket.to(data.room).emit('typing', data));
