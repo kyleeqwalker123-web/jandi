@@ -6,35 +6,34 @@
     <title>J & I Hub</title>
     <style>
         :root { --accent: #ff758c; --glass: rgba(255, 255, 255, 0.12); }
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        * { box-sizing: border-box; }
         body { 
             font-family: -apple-system, system-ui, sans-serif; background: #000; color: white; margin: 0; 
-            height: 100dvh; width: 100vw; overflow: hidden;
+            height: 100dvh; overflow: hidden;
             background-image: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url('https://images.unsplash.com/photo-1464802686167-b939a67e06a1?auto=format&fit=crop&q=80&w=2000');
             background-size: cover; background-position: center;
         }
         #setup { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%; padding: 30px; }
         #chat { display: none; flex-direction: column; height: 100dvh; }
-        .widget-bar { background: rgba(0,0,0,0.7); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255,255,255,0.1); }
-        #player-container { width: 100%; height: 0; transition: height 0.3s; overflow: hidden; }
-        #yt-player { width: 100%; height: 210px; border: none; }
+        .widget-bar { background: rgba(0,0,0,0.85); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255,255,255,0.1); }
+        #player-container { width: 100%; height: 0; transition: height 0.3s; }
+        #yt-player { width: 100%; height: 100%; border: none; }
         .controls { display: flex; gap: 8px; padding: 10px; overflow-x: auto; }
-        .btn-s { background: var(--glass); border: none; color: white; padding: 8px 12px; border-radius: 8px; font-size: 11px; white-space: nowrap; font-weight: 500; }
+        .btn-s { background: var(--glass); border: none; color: white; padding: 8px 12px; border-radius: 8px; font-size: 11px; font-weight: 600; }
         #messages { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
-        .msg { padding: 12px 16px; border-radius: 20px; max-width: 85%; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
+        .msg { padding: 12px 16px; border-radius: 20px; max-width: 85%; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.05); }
         .my-msg { background: rgba(255, 117, 140, 0.6); align-self: flex-end; }
         .their-msg { background: var(--glass); align-self: flex-start; }
-        .input-area { background: rgba(10,10,10,0.9); padding: 12px 15px; padding-bottom: calc(12px + env(safe-area-inset-bottom)); display: flex; gap: 10px; }
+        .input-area { background: rgba(10,10,10,0.95); padding: 12px 15px; padding-bottom: calc(12px + env(safe-area-inset-bottom)); display: flex; gap: 10px; }
         #input { flex: 1; background: var(--glass); border: none; color: white; padding: 12px 18px; border-radius: 25px; font-size: 16px; outline: none; }
-        .send-btn { background: var(--accent); color: white; border: none; width: 42px; height: 42px; border-radius: 50%; font-size: 20px; }
-        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
+        .send-btn { background: var(--accent); color: white; border: none; width: 44px; height: 44px; border-radius: 50%; font-size: 20px; }
     </style>
 </head>
 <body>
 
     <div id="setup">
-        <h1 style="color:var(--accent); letter-spacing: 3px;">J & I</h1>
-        <select id="userSelect" style="width:100%; max-width:300px; padding:15px; margin-bottom:10px; background:#222; color:white; border-radius:12px;">
+        <h1 style="color:var(--accent); letter-spacing: 3px; font-weight: 200;">J & I</h1>
+        <select id="userSelect" style="width:100%; max-width:300px; padding:15px; margin-bottom:10px; background:#222; color:white; border-radius:12px; border:none;">
             <option value="J">I am J</option><option value="I">I am I</option>
         </select>
         <input type="text" id="roomInput" placeholder="Room Name" style="width:100%; max-width:300px; padding:15px; margin-bottom:10px; background:#222; color:white; border-radius:12px; border:none;">
@@ -44,10 +43,11 @@
 
     <div id="chat">
         <div class="widget-bar">
-            <div id="player-container"><iframe id="yt-player" allow="autoplay; encrypted-media" allowfullscreen></iframe></div>
+            <div id="player-container"><div id="yt-player"></div></div>
             <div class="controls">
-                <button class="btn-s" onclick="promptVideo()">📺 Youtube Link</button>
-                <button class="btn-s" onclick="sendLocation()">📍 Distance Ping</button>
+                <button class="btn-s" onclick="promptVideo()">📺 Link</button>
+                <button class="btn-s" onclick="forceSync()">🔄 Sync Us</button>
+                <button class="btn-s" onclick="sendLocation()">📍 Distance</button>
                 <button class="btn-s" style="background:#ff4757" onclick="socket.emit('send buzz', currentRoom)">⚡ BUZZ</button>
             </div>
         </div>
@@ -62,11 +62,17 @@
     <audio id="buzzSound" src="https://assets.mixkit.co/active_storage/sfx/2955/2955-preview.mp3" preload="auto"></audio>
 
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="https://www.youtube.com/iframe_api"></script>
     <script>
         const socket = io();
-        let currentRoom = "", myLabel = "";
+        let player, currentRoom = "", myLabel = "", lastVidId = "";
         const msgSound = document.getElementById('msgSound');
-        const buzzSound = document.getElementById('buzzSound');
+
+        function onYouTubeIframeAPIReady() {
+            player = new YT.Player('yt-player', {
+                playerVars: { 'autoplay': 1, 'playsinline': 1, 'rel': 0, 'enablejsapi': 1 }
+            });
+        }
 
         function join() {
             const r = document.getElementById('roomInput').value;
@@ -75,14 +81,12 @@
             if (r && p) {
                 currentRoom = r + "_" + p;
                 msgSound.play().then(() => { msgSound.pause(); msgSound.currentTime = 0; });
-                buzzSound.play().then(() => { buzzSound.pause(); buzzSound.currentTime = 0; });
                 document.getElementById('setup').style.display = 'none';
                 document.getElementById('chat').style.display = 'flex';
                 socket.emit('join room', currentRoom);
-            } else { alert("Enter room & password!"); }
+            }
         }
 
-        // --- YOUTUBE SYNC ---
         function promptVideo() {
             const url = prompt("Paste YouTube Link:");
             if(url) {
@@ -90,44 +94,50 @@
                 const match = url.match(regExp);
                 const vid = (match && match[2].length == 11) ? match[2] : null;
                 if (vid) {
-                    socket.emit('play video', { room: currentRoom, videoId: vid });
+                    lastVidId = vid;
+                    socket.emit('play video', { room: currentRoom, videoId: vid, startAt: 0 });
                 }
             }
         }
-        socket.on('sync video', id => {
+
+        function forceSync() {
+            const time = Math.floor(player.getCurrentTime());
+            socket.emit('play video', { room: currentRoom, videoId: lastVidId, startAt: time });
+        }
+
+        socket.on('sync video', data => {
             document.getElementById('player-container').style.height = "210px";
-            // Simple embed method to avoid "Video Unavailable" errors
-            document.getElementById('yt-player').src = `https://www.youtube.com/embed/${id}?autoplay=1&rel=0`;
+            lastVidId = data.videoId;
+            // The magic reload that bypasses mobile restrictions
+            player.loadVideoById({
+                videoId: data.videoId,
+                startSeconds: data.startAt || 0
+            });
             msgSound.currentTime = 0; msgSound.play();
         });
 
-        // --- DISTANCE PING ---
         function sendLocation() {
             navigator.geolocation.getCurrentPosition(pos => {
                 socket.emit('send location', { room: currentRoom, user: myLabel, lat: pos.coords.latitude, lon: pos.coords.longitude });
                 addMessageToUI({ user: 'System', msg: "Sent distance ping! 📍" });
             });
         }
+
         socket.on('receive location', data => {
             navigator.geolocation.getCurrentPosition(myPos => {
-                const d = calcDist(myPos.coords.latitude, myPos.coords.longitude, data.lat, data.lon);
+                const R = 3958.8;
+                const dLat = (data.lat - myPos.coords.latitude) * Math.PI / 180;
+                const dLon = (data.lon - myPos.coords.longitude) * Math.PI / 180;
+                const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(myPos.coords.latitude * Math.PI / 180) * Math.cos(data.lat * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
+                const d = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
                 addMessageToUI({ user: 'System', msg: `${data.user} is ${d.toFixed(1)} miles away. 📍` });
-                msgSound.currentTime = 0; msgSound.play();
             });
         });
 
-        function calcDist(lat1, lon1, lat2, lon2) {
-            const R = 3958.8;
-            const dLat = (lat2-lat1)*Math.PI/180; const dLon = (lon2-lon1)*Math.PI/180;
-            const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
-            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-        }
-
-        // --- CHAT LOGIC ---
         function addMessageToUI(data) {
             const item = document.createElement('li');
             item.className = 'msg ' + (data.user === myLabel ? 'my-msg' : 'their-msg');
-            item.innerHTML = `<span style="font-size:10px; display:block; opacity:0.6; margin-bottom:2px;">${data.user}</span>${data.msg}`;
+            item.innerHTML = `<span style="font-size:10px; display:block; opacity:0.6">${data.user}</span>${data.msg}`;
             document.getElementById('messages').appendChild(item);
             document.getElementById('messages').scrollTop = 99999;
             if (data.user !== 'System') { msgSound.currentTime = 0; msgSound.play(); }
@@ -141,7 +151,7 @@
 
         socket.on('get buzzed', () => { 
             document.body.style.animation = "shake 0.4s"; 
-            buzzSound.currentTime = 0; buzzSound.play();
+            document.getElementById('buzzSound').play();
             setTimeout(() => document.body.style.animation = "", 400);
         });
 
