@@ -2,14 +2,9 @@ const express = require('express');
 const app = express();
 const http = require('http').createServer(app);
 const https = require('https'); 
-const io = require('socket.io')(http, { 
-    cors: { origin: "*" }, 
-    maxHttpBufferSize: 1e7 // Allows for high-quality photos and doodles
-});
+const io = require('socket.io')(http, { cors: { origin: "*" }, maxHttpBufferSize: 1e7 });
 
 app.use(express.static(__dirname));
-
-// Central storage for messages and user status
 let roomData = {};
 
 io.on('connection', (socket) => {
@@ -18,21 +13,19 @@ io.on('connection', (socket) => {
 
     socket.on('join room', (data) => {
         const { room, user } = data;
-        userRoom = room;
-        userLabel = user;
+        userRoom = room; userLabel = user;
         socket.join(room);
-        
-        if (!roomData[room]) {
-            roomData[room] = { messages: [], users: { 'J': 'offline', 'I': 'offline' } };
-        }
-        
-        // Set user to online and notify the room
+        if (!roomData[room]) roomData[room] = { messages: [], users: {'J':'offline','I':'offline'}, theme: 'default' };
         roomData[room].users[user] = "online";
         io.to(room).emit('status_update', roomData[room].users);
-        
-        // Load existing chat history (up to 500 messages)
-        if (roomData[room].messages.length > 0) {
-            socket.emit('load history', roomData[room].messages);
+        socket.emit('set_theme', roomData[room].theme); // Sync theme on join
+        if (roomData[room].messages.length > 0) socket.emit('load history', roomData[room].messages);
+    });
+
+    socket.on('change_theme', (data) => {
+        if (roomData[data.room]) {
+            roomData[data.room].theme = data.theme;
+            io.to(data.room).emit('set_theme', data.theme);
         }
     });
 
@@ -51,7 +44,6 @@ io.on('connection', (socket) => {
         io.to(data.room).emit('chat message', data);
     });
 
-    // Special Interactions
     socket.on('typing', (data) => socket.to(data.room).emit('typing', data));
     socket.on('heart_burst', (room) => io.to(room).emit('heart_burst'));
     socket.on('sync video', (data) => io.to(data.room).emit('sync video', data));
@@ -61,11 +53,7 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 10000;
 http.listen(PORT, '0.0.0.0', () => { 
-    console.log(`J&I Hub Server Active on Port ${PORT}`);
-    
-    // Heartbeat: Pings every 14 mins to stop Render from sleeping
     setInterval(() => {
-        // REPLACE THIS URL with your actual Render URL after deployment
         const url = `https://your-app-name.onrender.com`; 
         https.get(url, (res) => {}).on('error', (e) => {});
     }, 840000);
