@@ -15,11 +15,19 @@ io.on('connection', (socket) => {
         const { room, user } = data;
         userRoom = room; userLabel = user;
         socket.join(room);
-        if (!roomData[room]) roomData[room] = { messages: [], users: {'J':'offline','I':'offline'}, theme: 'default' };
+        
+        if (!roomData[room]) {
+            roomData[room] = { messages: [], users: {'J':'offline','I':'offline'}, theme: 'default' };
+        }
+        
         roomData[room].users[user] = "online";
         io.to(room).emit('status_update', roomData[room].users);
         socket.emit('set_theme', roomData[room].theme);
-        if (roomData[room].messages.length > 0) socket.emit('load history', roomData[room].messages);
+        
+        // Send history to the user joining
+        if (roomData[room].messages.length > 0) {
+            socket.emit('load history', roomData[room].messages);
+        }
     });
 
     socket.on('chat message', (data) => {
@@ -53,8 +61,8 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 10000;
 http.listen(PORT, '0.0.0.0', () => { 
+    // Keep-alive ping
     setInterval(() => {
-        const url = `https://your-app-name.onrender.com`; 
-        https.get(url, (res) => {}).on('error', (e) => {});
+        https.get(`https://your-app-name.onrender.com`, (res) => {}).on('error', (e) => {});
     }, 840000);
 });
