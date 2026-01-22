@@ -1,51 +1,77 @@
-<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-<script>
-    // This connects the browser to your Render server
-    const socket = io({
-        transports: ['websocket'],
-        upgrade: false
-    });
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>J & I Secure Chat</title>
+    <style>
+        body { font-family: -apple-system, sans-serif; background: #000; color: white; margin: 0; display: flex; flex-direction: column; height: 100vh; justify-content: center; align-items: center; }
+        #setup, #chat { width: 100%; max-width: 400px; padding: 20px; box-sizing: border-box; display: flex; flex-direction: column; }
+        #chat { display: none; height: 100vh; max-width: 100%; }
+        input, select, button { padding: 15px; margin: 10px 0; border-radius: 8px; border: none; font-size: 16px; }
+        input, select { background: #222; color: white; }
+        button { background: #007bff; color: white; font-weight: bold; cursor: pointer; }
+        #messages { flex-grow: 1; overflow-y: auto; list-style: none; padding: 10px; margin: 0; display: flex; flex-direction: column; }
+        .msg { padding: 10px 15px; border-radius: 15px; margin: 5px; max-width: 80%; word-wrap: break-word; }
+        .msg-j { background: #0056b3; align-self: flex-start; }
+        .msg-i { background: #1e7e34; align-self: flex-end; }
+        .input-area { display: flex; background: #111; padding: 10px; }
+        #input { flex-grow: 1; }
+    </style>
+</head>
+<body>
 
-    let currentRoom = "";
-    let myLabel = "";
+    <div id="setup">
+        <h2 style="text-align:center">J & I Secure</h2>
+        <select id="userSelect"><option value="J">I am J</option><option value="I">I am I</option></select>
+        <input type="text" id="roomInput" placeholder="Room Name">
+        <input type="password" id="passInput" placeholder="Password">
+        <button onclick="join()">Enter Chat</button>
+        <p id="status" style="font-size: 12px; color: gray; text-align: center;">Connecting to server...</p>
+    </div>
 
-    function join() {
-        const room = document.getElementById('roomInput').value.trim();
-        const pass = document.getElementById('passInput').value.trim();
-        myLabel = document.getElementById('userSelect').value;
+    <div id="chat">
+        <ul id="messages"></ul>
+        <form id="form" class="input-area">
+            <input id="input" autocomplete="off" placeholder="Message..."><button>Send</button>
+        </form>
+    </div>
 
-        if (room && pass) {
-            currentRoom = room + "_" + pass; 
-            document.getElementById('setup').style.display = 'none';
-            document.getElementById('chat').style.display = 'flex';
-            // This sends a signal to Render to join the room
-            socket.emit('join room', currentRoom);
-            console.log("Joined room: " + currentRoom);
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script>
+        const socket = io({ transports: ['websocket'] });
+        let currentRoom = "", myLabel = "";
+
+        socket.on('connect', () => { document.getElementById('status').innerText = "Connected! ✅"; });
+
+        function join() {
+            const r = document.getElementById('roomInput').value;
+            const p = document.getElementById('passInput').value;
+            myLabel = document.getElementById('userSelect').value;
+            if (r && p) {
+                currentRoom = r + "_" + p;
+                document.getElementById('setup').style.display = 'none';
+                document.getElementById('chat').style.display = 'flex';
+                socket.emit('join room', currentRoom);
+            }
         }
-    }
 
-    document.getElementById('form').onsubmit = (e) => {
-        e.preventDefault();
-        const input = document.getElementById('input');
-        if (input.value.trim()) {
-            const data = { 
-                id: Date.now(),
-                room: currentRoom, 
-                msg: input.value, 
-                user: myLabel, 
-                time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) 
-            };
-            socket.emit('chat message', data);
-            input.value = '';
-        }
-    };
+        document.getElementById('form').onsubmit = (e) => {
+            e.preventDefault();
+            const input = document.getElementById('input');
+            if (input.value) {
+                socket.emit('chat message', { room: currentRoom, msg: input.value, user: myLabel });
+                input.value = '';
+            }
+        };
 
-    socket.on('chat message', (data) => {
-        const item = document.createElement('li');
-        item.className = `msg msg-${data.user.toLowerCase()}`;
-        item.id = "msg-" + data.id;
-        item.innerHTML = `<span class="label">${data.user} • ${data.time}</span>${data.msg}<div class="reaction-badge"></div>`;
-        document.getElementById('messages').appendChild(item);
-        document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
-    });
-</script>
+        socket.on('chat message', (data) => {
+            const item = document.createElement('li');
+            item.className = `msg msg-${data.user.toLowerCase()}`;
+            item.innerText = data.msg;
+            document.getElementById('messages').appendChild(item);
+            document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
+        });
+    </script>
+</body>
+</html>
