@@ -27,7 +27,7 @@
         <input type="text" id="roomInput" placeholder="Room Name">
         <input type="password" id="passInput" placeholder="Password">
         <button onclick="join()">Enter Chat</button>
-        <p id="status" style="font-size: 12px; color: gray; text-align: center;">Connecting to server...</p>
+        <p id="status" style="font-size: 12px; color: gray; text-align: center;">Connecting...</p>
     </div>
 
     <div id="chat">
@@ -39,10 +39,14 @@
 
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script>
-        const socket = io({ transports: ['websocket'] });
+        // STEP 2 CHANGE IS HERE: simplified connection
+        const socket = io(); 
+
         let currentRoom = "", myLabel = "";
 
-        socket.on('connect', () => { document.getElementById('status').innerText = "Connected! ✅"; });
+        socket.on('connect', () => { 
+            document.getElementById('status').innerText = "Connected! ✅"; 
+        });
 
         function join() {
             const r = document.getElementById('roomInput').value;
