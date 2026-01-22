@@ -6,54 +6,101 @@
     <title>J & I Hub</title>
     <style>
         :root { --accent: #ff758c; --glass: rgba(255, 255, 255, 0.12); }
-        * { box-sizing: border-box; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body { 
             font-family: -apple-system, system-ui, sans-serif; background: #000; color: white; margin: 0; 
             height: 100dvh; overflow: hidden;
             background-image: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url('https://images.unsplash.com/photo-1464802686167-b939a67e06a1?auto=format&fit=crop&q=80&w=2000');
             background-size: cover; background-position: center;
         }
+
+        /* Setup Screen */
         #setup { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%; padding: 30px; }
-        #chat { display: none; flex-direction: column; height: 100dvh; }
-        .widget-bar { background: rgba(0,0,0,0.85); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255,255,255,0.1); }
-        #player-container { width: 100%; height: 0; transition: height 0.3s; }
+        .setup-input { width: 100%; max-width: 300px; padding: 15px; margin-bottom: 10px; background: #222; color: white; border-radius: 12px; border: none; font-size: 16px; }
+
+        /* Status Bar */
+        #status-bar { background: rgba(0,0,0,0.6); backdrop-filter: blur(10px); padding: 8px 15px; display: flex; gap: 20px; font-size: 11px; border-bottom: 1px solid rgba(255,255,255,0.1); font-weight: bold; letter-spacing: 1px; }
+        .dot { height: 8px; width: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; background: #555; }
+        .online .dot { background: #2ecc71; box-shadow: 0 0 8px #2ecc71; }
+        .offline .dot { background: #e74c3c; }
+
+        #chat { display: none; flex-direction: column; height: 100dvh; position: relative; }
+        .widget-bar { background: rgba(0,0,0,0.85); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255,255,255,0.1); z-index: 10; }
+        #player-container { width: 100%; height: 0; transition: height 0.3s; overflow: hidden; position: relative; }
         #yt-player { width: 100%; height: 100%; border: none; }
-        .controls { display: flex; gap: 8px; padding: 10px; overflow-x: auto; }
-        .btn-s { background: var(--glass); border: none; color: white; padding: 8px 12px; border-radius: 8px; font-size: 11px; font-weight: 600; }
+        
+        /* Doodle Pad */
+        #canvas-container { display: none; background: #fff; position: absolute; top: 15%; left: 5%; right: 5%; bottom: 15%; z-index: 100; border-radius: 20px; box-shadow: 0 0 40px rgba(0,0,0,0.8); overflow: hidden; flex-direction: column; }
+        canvas { flex: 1; touch-action: none; background: white; }
+        .canvas-tools { background: #f0f0f0; padding: 15px; display: flex; justify-content: space-around; }
+
+        .controls { display: flex; gap: 8px; padding: 10px; overflow-x: auto; scrollbar-width: none; }
+        .btn-s { background: var(--glass); border: none; color: white; padding: 8px 12px; border-radius: 8px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+        
         #messages { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
-        .msg { padding: 12px 16px; border-radius: 20px; max-width: 85%; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.05); }
+        .msg { padding: 12px 16px; border-radius: 20px; max-width: 85%; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.05); position: relative; }
         .my-msg { background: rgba(255, 117, 140, 0.6); align-self: flex-end; }
         .their-msg { background: var(--glass); align-self: flex-start; }
-        .input-area { background: rgba(10,10,10,0.95); padding: 12px 15px; padding-bottom: calc(12px + env(safe-area-inset-bottom)); display: flex; gap: 10px; }
+        .msg img { max-width: 100%; border-radius: 12px; margin-top: 8px; display: block; border: 1px solid rgba(255,255,255,0.1); }
+        .dl-link { display: inline-block; margin-top: 5px; font-size: 10px; color: #fff; opacity: 0.6; text-decoration: none; }
+        
+        #typing-indicator { font-size: 10px; padding: 0 20px 5px; color: var(--accent); font-style: italic; height: 15px; }
+        .input-area { background: rgba(10,10,10,0.95); padding: 12px 15px; padding-bottom: calc(12px + env(safe-area-inset-bottom)); display: flex; gap: 10px; align-items: center; }
         #input { flex: 1; background: var(--glass); border: none; color: white; padding: 12px 18px; border-radius: 25px; font-size: 16px; outline: none; }
-        .send-btn { background: var(--accent); color: white; border: none; width: 44px; height: 44px; border-radius: 50%; font-size: 20px; }
+        
+        .icon-btn { font-size: 24px; background: none; border: none; color: white; cursor: pointer; padding: 0; }
+        .send-btn { background: var(--accent); color: white; border: none; width: 44px; height: 44px; border-radius: 50%; font-size: 20px; flex-shrink: 0; }
+        
+        @keyframes floatHeart { 0% { transform: translateY(0) scale(1); opacity: 1; } 100% { transform: translateY(-100vh) scale(1.5); opacity: 0; } }
+        .floating-heart { position: fixed; bottom: 0; pointer-events: none; animation: floatHeart 3s linear forwards; z-index: 999; }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
     </style>
 </head>
 <body>
 
     <div id="setup">
-        <h1 style="color:var(--accent); letter-spacing: 3px; font-weight: 200;">J & I</h1>
-        <select id="userSelect" style="width:100%; max-width:300px; padding:15px; margin-bottom:10px; background:#222; color:white; border-radius:12px; border:none;">
-            <option value="J">I am J</option><option value="I">I am I</option>
-        </select>
-        <input type="text" id="roomInput" placeholder="Room Name" style="width:100%; max-width:300px; padding:15px; margin-bottom:10px; background:#222; color:white; border-radius:12px; border:none;">
-        <input type="password" id="passInput" placeholder="Password" style="width:100%; max-width:300px; padding:15px; margin-bottom:15px; background:#222; color:white; border-radius:12px; border:none;">
+        <h1 style="color:var(--accent); letter-spacing: 3px; font-weight: 200;">J & I HUB</h1>
+        <select id="userSelect" class="setup-input"><option value="J">I am J</option><option value="I">I am I</option></select>
+        <input type="text" id="roomInput" placeholder="Room Name" class="setup-input">
+        <input type="password" id="passInput" placeholder="Password" class="setup-input">
         <button onclick="join()" style="width:100%; max-width:300px; padding:15px; border-radius:12px; background:var(--accent); color:white; border:none; font-weight:bold;">Enter Hub</button>
     </div>
 
     <div id="chat">
+        <div id="status-bar">
+            <div id="status-J"><span class="dot"></span> J: Offline</div>
+            <div id="status-I"><span class="dot"></span> I: Offline</div>
+        </div>
+
+        <div id="canvas-container">
+            <canvas id="doodleCanvas"></canvas>
+            <div class="canvas-tools">
+                <button onclick="closeCanvas()" style="background:#444; color:white; border:none; padding:12px 20px; border-radius:10px;">Cancel</button>
+                <button onclick="sendDoodle()" style="background:var(--accent); color:white; border:none; padding:12px 20px; border-radius:10px; font-weight:bold;">Send Doodle</button>
+            </div>
+        </div>
+
         <div class="widget-bar">
             <div id="player-container"><div id="yt-player"></div></div>
             <div class="controls">
-                <button class="btn-s" onclick="promptVideo()">📺 Link</button>
-                <button class="btn-s" onclick="forceSync()">🔄 Sync Us</button>
+                <button class="btn-s" onclick="promptVideo()">📺 Youtube</button>
+                <button class="btn-s" onclick="openCanvas()">🎨 Doodle</button>
+                <button class="btn-s" onclick="socket.emit('heart_burst', currentRoom)">💖 Love</button>
+                <button id="sync-btn" class="btn-s" style="display:none;" onclick="forceSync()">🔄 Sync</button>
+                <button id="close-btn" class="btn-s" style="display:none; background:rgba(255,255,255,0.2);" onclick="closeVideo()">❌ Close</button>
                 <button class="btn-s" onclick="sendLocation()">📍 Distance</button>
                 <button class="btn-s" style="background:#ff4757" onclick="socket.emit('send buzz', currentRoom)">⚡ BUZZ</button>
             </div>
         </div>
+
         <ul id="messages"></ul>
+        <div id="typing-indicator"></div>
+
         <form id="form" class="input-area">
-            <input id="input" autocomplete="off" placeholder="Message...">
+            <input type="file" id="fileInput" accept="image/*" style="display:none;" onchange="handleFile(this)">
+            <button type="button" class="icon-btn" onclick="document.getElementById('fileInput').click()">📎</button>
+            <input id="input" autocomplete="off" placeholder="Message..." oninput="notifyTyping()">
+            <button class="icon-btn" type="button" onclick="socket.emit('heart_burst', currentRoom)" style="margin-right:5px">💖</button>
             <button class="send-btn">↑</button>
         </form>
     </div>
@@ -65,15 +112,63 @@
     <script src="https://www.youtube.com/iframe_api"></script>
     <script>
         const socket = io();
-        let player, currentRoom = "", myLabel = "", lastVidId = "";
+        let player, currentRoom = "", myLabel = "", lastVidId = "", typingTimeout;
         const msgSound = document.getElementById('msgSound');
 
-        function onYouTubeIframeAPIReady() {
-            player = new YT.Player('yt-player', {
-                playerVars: { 'autoplay': 1, 'playsinline': 1, 'rel': 0, 'enablejsapi': 1 }
-            });
-        }
+        // --- DOODLE LOGIC ---
+        const canvas = document.getElementById('doodleCanvas');
+        const ctx = canvas.getContext('2d');
+        let drawing = false;
 
+        function openCanvas() {
+            document.getElementById('canvas-container').style.display = 'flex';
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+            ctx.strokeStyle = "#000"; ctx.lineWidth = 4; ctx.lineCap = "round";
+        }
+        function closeCanvas() { document.getElementById('canvas-container').style.display = 'none'; ctx.clearRect(0,0,canvas.width,canvas.height); }
+        function sendDoodle() {
+            socket.emit('chat message', { room: currentRoom, user: myLabel, image: canvas.toDataURL('image/png') });
+            closeCanvas();
+        }
+        canvas.addEventListener('touchstart', e => { 
+            drawing = true; const t = e.touches[0]; const r = canvas.getBoundingClientRect();
+            ctx.beginPath(); ctx.moveTo(t.clientX - r.left, t.clientY - r.top); e.preventDefault(); 
+        });
+        canvas.addEventListener('touchmove', e => { 
+            if(!drawing) return; const t = e.touches[0]; const r = canvas.getBoundingClientRect();
+            ctx.lineTo(t.clientX - r.left, t.clientY - r.top); ctx.stroke(); e.preventDefault(); 
+        });
+        canvas.addEventListener('touchend', () => drawing = false);
+
+        // --- STATUS & TYPING ---
+        socket.on('status_update', (users) => {
+            ['J', 'I'].forEach(u => {
+                const el = document.getElementById(`status-${u}`);
+                if (users[u] === 'online') { el.className = 'online'; el.innerHTML = `<span class="dot"></span> ${u}: Online`; }
+                else { el.className = 'offline'; el.innerHTML = `<span class="dot"></span> ${u}: Offline`; }
+            });
+        });
+        function notifyTyping() {
+            socket.emit('typing', { room: currentRoom, user: myLabel, isTyping: true });
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(() => socket.emit('typing', { room: currentRoom, user: myLabel, isTyping: false }), 2000);
+        }
+        socket.on('typing', data => { document.getElementById('typing-indicator').innerText = data.isTyping ? `${data.user} is typing...` : ""; });
+
+        // --- HEART BURST ---
+        socket.on('heart_burst', () => {
+            for(let i=0; i<15; i++) {
+                const h = document.createElement('div'); h.className = 'floating-heart';
+                h.innerText = ['💖','💗','💓','❤️','✨'][Math.floor(Math.random()*5)];
+                h.style.left = Math.random() * 100 + 'vw'; h.style.fontSize = (Math.random() * 20 + 20) + 'px';
+                h.style.animationDuration = (Math.random() * 2 + 2) + 's'; document.body.appendChild(h);
+                setTimeout(() => h.remove(), 3000);
+            }
+        });
+
+        // --- MAIN LOGIC ---
         function join() {
             const r = document.getElementById('roomInput').value;
             const p = document.getElementById('passInput').value;
@@ -83,85 +178,82 @@
                 msgSound.play().then(() => { msgSound.pause(); msgSound.currentTime = 0; });
                 document.getElementById('setup').style.display = 'none';
                 document.getElementById('chat').style.display = 'flex';
-                socket.emit('join room', currentRoom);
+                socket.emit('join room', { room: currentRoom, user: myLabel });
             }
         }
 
+        function handleFile(input) {
+            const file = input.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => socket.emit('chat message', { room: currentRoom, user: myLabel, image: e.target.result });
+                reader.readAsDataURL(file);
+                input.value = '';
+            }
+        }
+
+        function onYouTubeIframeAPIReady() {
+            player = new YT.Player('yt-player', { playerVars: { 'autoplay': 1, 'playsinline': 1, 'rel': 0, 'enablejsapi': 1 } });
+        }
         function promptVideo() {
             const url = prompt("Paste YouTube Link:");
             if(url) {
-                const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-                const match = url.match(regExp);
-                const vid = (match && match[2].length == 11) ? match[2] : null;
-                if (vid) {
-                    lastVidId = vid;
-                    socket.emit('play video', { room: currentRoom, videoId: vid, startAt: 0 });
-                }
+                const match = url.match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/);
+                if (match) socket.emit('sync video', { room: currentRoom, videoId: match[2], startAt: 0 });
             }
         }
-
-        function forceSync() {
-            const time = Math.floor(player.getCurrentTime());
-            socket.emit('play video', { room: currentRoom, videoId: lastVidId, startAt: time });
-        }
+        function forceSync() { if(player.getCurrentTime) socket.emit('sync video', { room: currentRoom, videoId: lastVidId, startAt: Math.floor(player.getCurrentTime()) }); }
+        function closeVideo() { socket.emit('sync video', { room: currentRoom, videoId: null }); }
 
         socket.on('sync video', data => {
-            document.getElementById('player-container').style.height = "210px";
-            lastVidId = data.videoId;
-            // The magic reload that bypasses mobile restrictions
-            player.loadVideoById({
-                videoId: data.videoId,
-                startSeconds: data.startAt || 0
-            });
-            msgSound.currentTime = 0; msgSound.play();
-        });
-
-        function sendLocation() {
-            navigator.geolocation.getCurrentPosition(pos => {
-                socket.emit('send location', { room: currentRoom, user: myLabel, lat: pos.coords.latitude, lon: pos.coords.longitude });
-                addMessageToUI({ user: 'System', msg: "Sent distance ping! 📍" });
-            });
-        }
-
-        socket.on('receive location', data => {
-            navigator.geolocation.getCurrentPosition(myPos => {
-                const R = 3958.8;
-                const dLat = (data.lat - myPos.coords.latitude) * Math.PI / 180;
-                const dLon = (data.lon - myPos.coords.longitude) * Math.PI / 180;
-                const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(myPos.coords.latitude * Math.PI / 180) * Math.cos(data.lat * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
-                const d = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-                addMessageToUI({ user: 'System', msg: `${data.user} is ${d.toFixed(1)} miles away. 📍` });
-            });
+            const container = document.getElementById('player-container');
+            if (!data || !data.videoId) {
+                container.style.height = "0"; document.getElementById('sync-btn').style.display = "none";
+                document.getElementById('close-btn').style.display = "none"; if(player.stopVideo) player.stopVideo();
+            } else {
+                container.style.height = "210px"; document.getElementById('sync-btn').style.display = "block";
+                document.getElementById('close-btn').style.display = "block";
+                lastVidId = data.videoId; player.loadVideoById({ videoId: data.videoId, startSeconds: data.startAt || 0 });
+            }
         });
 
         function addMessageToUI(data) {
             const item = document.createElement('li');
             item.className = 'msg ' + (data.user === myLabel ? 'my-msg' : 'their-msg');
-            item.innerHTML = `<span style="font-size:10px; display:block; opacity:0.6">${data.user}</span>${data.msg}`;
+            let content = `<span style="font-size:10px; display:block; opacity:0.6">${data.user}</span>`;
+            if (data.msg) content += `<div>${data.msg}</div>`;
+            if (data.image) {
+                content += `<img src="${data.image}" onclick="window.open(this.src)">`;
+                content += `<a href="${data.image}" download="JI_Hub_${Date.now()}.png" class="dl-link">⬇️ Download Image</a>`;
+            }
+            item.innerHTML = content;
             document.getElementById('messages').appendChild(item);
             document.getElementById('messages').scrollTop = 99999;
-            if (data.user !== 'System') { msgSound.currentTime = 0; msgSound.play(); }
+            if(data.user !== 'System') { msgSound.currentTime = 0; msgSound.play(); }
         }
 
         socket.on('chat message', addMessageToUI);
-        socket.on('load history', h => {
-            document.getElementById('messages').innerHTML = '';
-            h.forEach(addMessageToUI);
+        socket.on('load history', h => { document.getElementById('messages').innerHTML = ''; if(h) h.forEach(addMessageToUI); });
+
+        function sendLocation() {
+            navigator.geolocation.getCurrentPosition(pos => socket.emit('send location', { room: currentRoom, user: myLabel, lat: pos.coords.latitude, lon: pos.coords.longitude }));
+        }
+        socket.on('receive location', data => {
+            navigator.geolocation.getCurrentPosition(myPos => {
+                const R = 3958.8; const dLat = (data.lat - myPos.coords.latitude) * Math.PI / 180;
+                const dLon = (data.lon - myPos.coords.longitude) * Math.PI / 180;
+                const a = Math.sin(dLat/2)**2 + Math.cos(myPos.coords.latitude * Math.PI / 180) * Math.cos(data.lat * Math.PI / 180) * Math.sin(dLon/2)**2;
+                const d = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                addMessageToUI({ user: 'System', msg: `${data.user} is ${d.toFixed(1)} miles away. 📍` });
+            });
         });
 
-        socket.on('get buzzed', () => { 
-            document.body.style.animation = "shake 0.4s"; 
-            document.getElementById('buzzSound').play();
-            setTimeout(() => document.body.style.animation = "", 400);
-        });
+        socket.on('get buzzed', () => { document.body.style.animation = "shake 0.4s"; document.getElementById('buzzSound').play(); setTimeout(() => document.body.style.animation = "", 400); });
 
         document.getElementById('form').onsubmit = e => {
             e.preventDefault();
             const input = document.getElementById('input');
-            if (input.value) {
-                socket.emit('chat message', { room: currentRoom, msg: input.value, user: myLabel });
-                input.value = '';
-            }
+            if (input.value) { socket.emit('chat message', { room: currentRoom, msg: input.value, user: myLabel }); input.value = ''; }
         };
     </script>
 </body>
