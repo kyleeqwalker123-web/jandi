@@ -7,16 +7,23 @@
     <style>
         body { font-family: -apple-system, sans-serif; background: #000; color: white; margin: 0; display: flex; flex-direction: column; height: 100vh; justify-content: center; align-items: center; }
         #setup, #chat { width: 100%; max-width: 400px; padding: 20px; box-sizing: border-box; display: flex; flex-direction: column; }
-        #chat { display: none; height: 100vh; max-width: 100%; }
+        #chat { display: none; height: 100vh; max-width: 100%; padding: 0; }
+        
         input, select, button { padding: 15px; margin: 10px 0; border-radius: 8px; border: none; font-size: 16px; }
         input, select { background: #222; color: white; }
         button { background: #007bff; color: white; font-weight: bold; cursor: pointer; }
-        #messages { flex-grow: 1; overflow-y: auto; list-style: none; padding: 10px; margin: 0; display: flex; flex-direction: column; }
-        .msg { padding: 10px 15px; border-radius: 15px; margin: 5px; max-width: 80%; word-wrap: break-word; }
-        .msg-j { background: #0056b3; align-self: flex-start; }
-        .msg-i { background: #1e7e34; align-self: flex-end; }
-        .input-area { display: flex; background: #111; padding: 10px; }
-        #input { flex-grow: 1; }
+        
+        #messages { flex-grow: 1; overflow-y: auto; list-style: none; padding: 20px; margin: 0; display: flex; flex-direction: column; background: #000; }
+        
+        .msg { padding: 10px 15px; border-radius: 18px; margin: 5px 0; max-width: 75%; word-wrap: break-word; line-height: 1.4; position: relative; }
+        
+        /* The side logic */
+        .my-msg { background: #007bff; align-self: flex-end; border-bottom-right-radius: 2px; color: white; }
+        .their-msg { background: #333; align-self: flex-start; border-bottom-left-radius: 2px; color: white; }
+        
+        .label { font-size: 10px; opacity: 0.6; margin-bottom: 2px; display: block; }
+        .input-area { display: flex; background: #111; padding: 15px; border-top: 1px solid #222; }
+        #input { flex-grow: 1; margin: 0 10px 0 0; }
     </style>
 </head>
 <body>
@@ -39,14 +46,10 @@
 
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script>
-        // STEP 2 CHANGE IS HERE: simplified connection
         const socket = io(); 
-
         let currentRoom = "", myLabel = "";
 
-        socket.on('connect', () => { 
-            document.getElementById('status').innerText = "Connected! ✅"; 
-        });
+        socket.on('connect', () => { document.getElementById('status').innerText = "Connected! ✅"; });
 
         function join() {
             const r = document.getElementById('roomInput').value;
@@ -64,6 +67,7 @@
             e.preventDefault();
             const input = document.getElementById('input');
             if (input.value) {
+                // We send the user label so the other person knows who sent it
                 socket.emit('chat message', { room: currentRoom, msg: input.value, user: myLabel });
                 input.value = '';
             }
@@ -71,8 +75,15 @@
 
         socket.on('chat message', (data) => {
             const item = document.createElement('li');
-            item.className = `msg msg-${data.user.toLowerCase()}`;
-            item.innerText = data.msg;
+            
+            // If the message's user matches YOUR label, put it on the right
+            if (data.user === myLabel) {
+                item.className = 'msg my-msg';
+            } else {
+                item.className = 'msg their-msg';
+            }
+            
+            item.innerHTML = `<span class="label">${data.user}</span>${data.msg}`;
             document.getElementById('messages').appendChild(item);
             document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
         });
