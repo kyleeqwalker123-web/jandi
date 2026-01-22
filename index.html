@@ -16,48 +16,39 @@
         #setup { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%; padding: 30px; }
         #chat { display: none; flex-direction: column; height: 100dvh; }
         .widget-bar { background: rgba(0,0,0,0.7); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255,255,255,0.1); }
-        #yt-player { width: 100%; height: 0; transition: height 0.3s; border: none; }
-        .controls { display: flex; gap: 8px; padding: 10px; overflow-x: auto; scrollbar-width: none; }
+        #player-container { width: 100%; height: 0; transition: height 0.3s; overflow: hidden; }
+        #yt-player { width: 100%; height: 100%; border: none; }
+        .controls { display: flex; gap: 8px; padding: 10px; overflow-x: auto; }
         .btn-s { background: var(--glass); border: none; color: white; padding: 8px 12px; border-radius: 8px; font-size: 12px; white-space: nowrap; font-weight: 500; }
         #messages { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
-        .msg { padding: 12px 16px; border-radius: 20px; max-width: 85%; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
-        .my-msg { background: rgba(255, 117, 140, 0.6); align-self: flex-end; border-bottom-right-radius: 4px; }
-        .their-msg { background: var(--glass); align-self: flex-start; border-bottom-left-radius: 4px; }
-        .secret { filter: blur(10px); cursor: pointer; }
-        .revealed { filter: blur(0) !important; }
-        #typing { font-size: 11px; padding: 5px 20px; height: 20px; color: var(--accent); opacity: 0; }
-        .input-area { background: rgba(10,10,10,0.9); padding: 12px 15px; padding-bottom: calc(12px + env(safe-area-inset-bottom)); display: flex; gap: 10px; align-items: center; }
+        .msg { padding: 12px 16px; border-radius: 20px; max-width: 85%; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
+        .my-msg { background: rgba(255, 117, 140, 0.6); align-self: flex-end; }
+        .their-msg { background: var(--glass); align-self: flex-start; }
+        .input-area { background: rgba(10,10,10,0.9); padding: 12px 15px; padding-bottom: calc(12px + env(safe-area-inset-bottom)); display: flex; gap: 10px; }
         #input { flex: 1; background: var(--glass); border: none; color: white; padding: 12px 18px; border-radius: 25px; font-size: 16px; outline: none; }
-        .send-btn { background: var(--accent); color: white; border: none; width: 42px; height: 42px; border-radius: 50%; font-weight: bold; font-size: 20px; }
-        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
+        .send-btn { background: var(--accent); color: white; border: none; width: 42px; height: 42px; border-radius: 50%; font-size: 20px; }
     </style>
 </head>
-<body id="mainBody">
+<body>
 
     <div id="setup">
-        <h1 style="color:var(--accent); font-weight: 200; letter-spacing: 3px;">J & I</h1>
-        <select id="userSelect" style="width:100%; max-width:300px; padding:15px; margin-bottom:10px; background:#222; color:white; border-radius:12px;">
-            <option value="J">I am J</option><option value="I">I am I</option>
-        </select>
-        <input type="text" id="roomInput" placeholder="Room Name" style="width:100%; max-width:300px; padding:15px; margin-bottom:10px; background:#222; color:white; border-radius:12px; border:none;">
-        <input type="password" id="passInput" placeholder="Password" style="width:100%; max-width:300px; padding:15px; margin-bottom:15px; background:#222; color:white; border-radius:12px; border:none;">
-        <button onclick="join()" style="width:100%; max-width:300px; padding:15px; border-radius:12px; background:var(--accent); color:white; border:none; font-weight:bold;">Enter Hub</button>
+        <h1 style="color:var(--accent); letter-spacing: 3px;">J & I</h1>
+        <button onclick="join()" style="width:100%; max-width:300px; padding:15px; border-radius:12px; background:var(--accent); color:white; border:none; font-weight:bold;">Sync & Enter</button>
     </div>
 
     <div id="chat">
         <div class="widget-bar">
-            <iframe id="yt-player" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+            <div id="player-container"><div id="yt-player"></div></div>
             <div class="controls">
-                <button class="btn-s" onclick="promptVideo()">📺 Youtube</button>
-                <button class="btn-s" onclick="sendLocation()">📍 Distance Ping</button>
-                <button id="secBtn" class="btn-s" onclick="toggleSecret()">🔒 Secret: OFF</button>
-                <button class="btn-s" style="background:#ff4757" onclick="sendBuzz()">⚡ BUZZ</button>
+                <button class="btn-s" onclick="promptVideo()">📺 Youtube Link</button>
+                <button class="btn-s" onclick="syncPlayVideo()">▶️ Sync Play</button>
+                <button class="btn-s" onclick="syncPauseVideo()">⏸️ Sync Pause</button>
+                <button class="btn-s" style="background:#ff4757" onclick="socket.emit('send buzz', currentRoom)">⚡ BUZZ</button>
             </div>
         </div>
         <ul id="messages"></ul>
-        <div id="typing">... is typing</div>
         <form id="form" class="input-area">
-            <input id="input" autocomplete="off" placeholder="Message..." oninput="handleTyping()">
+            <input id="input" autocomplete="off" placeholder="Message...">
             <button class="send-btn">↑</button>
         </form>
     </div>
@@ -66,26 +57,23 @@
     <audio id="buzzSound" src="https://assets.mixkit.co/active_storage/sfx/2955/2955-preview.mp3" preload="auto"></audio>
 
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="https://www.youtube.com/iframe_api"></script>
     <script>
-        const socket = io(); 
-        let currentRoom = "", myLabel = "", secretMode = false, tTime;
+        const socket = io();
+        let player, currentRoom = "J_I_Private", myLabel = "J", isInternalChange = false;
         const msgSound = document.getElementById('msgSound');
-        const buzzSound = document.getElementById('buzzSound');
+
+        function onYouTubeIframeAPIReady() {
+            player = new YT.Player('yt-player', {
+                events: { 'onStateChange': onPlayerStateChange }
+            });
+        }
 
         function join() {
-            // Mobile audio unlock for both sounds
             msgSound.play().then(() => { msgSound.pause(); msgSound.currentTime = 0; });
-            buzzSound.play().then(() => { buzzSound.pause(); buzzSound.currentTime = 0; });
-            
-            const r = document.getElementById('roomInput').value;
-            const p = document.getElementById('passInput').value;
-            myLabel = document.getElementById('userSelect').value;
-            if (r && p) {
-                currentRoom = r + "_" + p;
-                document.getElementById('setup').style.display = 'none';
-                document.getElementById('chat').style.display = 'flex';
-                socket.emit('join room', currentRoom);
-            }
+            document.getElementById('setup').style.display = 'none';
+            document.getElementById('chat').style.display = 'flex';
+            socket.emit('join room', currentRoom);
         }
 
         function promptVideo() {
@@ -95,82 +83,44 @@
                 socket.emit('play video', { room: currentRoom, videoId: vid });
             }
         }
+
         socket.on('sync video', id => {
-            const p = document.getElementById('yt-player');
-            p.style.height = "200px";
-            // Enabling JS API for better potential sync
-            p.src = `https://www.youtube.com/embed/${id}?autoplay=1&enablejsapi=1`;
-            msgSound.currentTime = 0;
-            msgSound.play();
+            document.getElementById('player-container').style.height = "200px";
+            player.loadVideoById(id);
         });
 
-        function sendLocation() {
-            navigator.geolocation.getCurrentPosition(pos => {
-                socket.emit('send location', { room: currentRoom, user: myLabel, lat: pos.coords.latitude, lon: pos.coords.longitude });
-            });
-        }
-        socket.on('receive location', data => {
-            navigator.geolocation.getCurrentPosition(myPos => {
-                const d = calcDist(myPos.coords.latitude, myPos.coords.longitude, data.lat, data.lon);
-                addMessageToUI({ user: 'System', msg: `${data.user} is ${d.toFixed(1)} miles away. 📍` });
-            });
+        // Sync Play/Pause Commands
+        function syncPlayVideo() { socket.emit('yt_control', { room: currentRoom, action: 'play' }); }
+        function syncPauseVideo() { socket.emit('yt_control', { room: currentRoom, action: 'pause' }); }
+
+        socket.on('yt_action', data => {
+            isInternalChange = true;
+            if (data.action === 'play') player.playVideo();
+            if (data.action === 'pause') player.pauseVideo();
         });
 
-        function calcDist(lat1, lon1, lat2, lon2) {
-            const R = 3958.8;
-            const dLat = (lat2-lat1)*Math.PI/180; const dLon = (lon2-lon1)*Math.PI/180;
-            const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
-            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        function onPlayerStateChange(event) {
+            // This is where we could detect manual clicks, but it often causes loops.
+            // Using the custom "Sync Play" buttons above is the most reliable way.
         }
 
-        function toggleSecret() { secretMode = !secretMode; document.getElementById('secBtn').innerText = secretMode ? "🔒 Secret: ON" : "🔒 Secret: OFF"; }
-        function handleTyping() { socket.emit('typing', { room: currentRoom, user: myLabel }); }
-        socket.on('user typing', d => {
-            const t = document.getElementById('typing'); t.innerText = `${d.user} is typing...`; t.style.opacity = 1;
-            clearTimeout(tTime); tTime = setTimeout(() => t.style.opacity = 0, 2000);
-        });
-
-        function sendBuzz() { socket.emit('send buzz', currentRoom); }
-        socket.on('get buzzed', () => { 
-            document.body.style.animation = "shake 0.4s"; 
-            buzzSound.currentTime = 0;
-            buzzSound.play();
-            if(navigator.vibrate) navigator.vibrate(300);
-            setTimeout(() => document.body.style.animation = "", 400);
-        });
-
-        function addMessageToUI(data) {
+        socket.on('chat message', data => {
+            msgSound.currentTime = 0; msgSound.play();
             const item = document.createElement('li');
-            item.className = data.user === myLabel ? 'msg my-msg' : 'msg their-msg';
-            if (data.isSecret) {
-                item.classList.add('secret');
-                item.onclick = function() { 
-                    this.classList.add('revealed'); 
-                    setTimeout(() => { this.style.opacity = '0'; setTimeout(() => this.remove(), 500); }, 9000);
-                };
-            }
-            item.innerHTML = `<span style="font-size:10px; display:block; opacity:0.6; margin-bottom:2px;">${data.user}</span>${data.msg}`;
+            item.className = 'msg ' + (data.user === myLabel ? 'my-msg' : 'their-msg');
+            item.innerHTML = `<span style="font-size:10px; display:block; opacity:0.6">${data.user}</span>${data.msg}`;
             document.getElementById('messages').appendChild(item);
             document.getElementById('messages').scrollTop = 99999;
-            
-            // SYNCHRONIZED POP: Plays for both users whenever ANY message arrives
-            if (data.user !== 'System') {
-                msgSound.currentTime = 0;
-                msgSound.play();
-            }
-        }
+        });
 
         document.getElementById('form').onsubmit = e => {
             e.preventDefault();
             const input = document.getElementById('input');
             if (input.value) {
-                socket.emit('chat message', { room: currentRoom, msg: input.value, user: myLabel, isSecret: secretMode });
+                socket.emit('chat message', { room: currentRoom, msg: input.value, user: myLabel });
                 input.value = '';
             }
         };
-
-        socket.on('chat message', addMessageToUI);
-        socket.on('load history', h => { document.getElementById('messages').innerHTML = ''; h.forEach(addMessageToUI); });
     </script>
 </body>
 </html>
