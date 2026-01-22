@@ -2,34 +2,32 @@ const express = require('express');
 const app = express();
 const http = require('http').createServer(app);
 const io = require('socket.io')(http, {
-  cors: {
-    origin: "*", // This allows your phone and Mac to talk to each other
-    methods: ["GET", "POST"]
-  }
+  cors: { origin: "*", methods: ["GET", "POST"] }
 });
 const path = require('path');
 
-app.use(express.static(path.join(__dirname)));
-
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
-});
+app.use(express.static(__dirname));
 
 io.on('connection', (socket) => {
-  console.log('User connected');
-  
+  console.log('A user connected: ' + socket.id);
+
   socket.on('join room', (room) => {
     socket.join(room);
-    console.log('User joined room: ' + room);
+    console.log(`User ${socket.id} joined room: ${room}`);
   });
 
   socket.on('chat message', (data) => {
-    // This sends the message to EVERYONE in the room
+    console.log(`Message received for room ${data.room}: ${data.msg}`);
+    // This line sends it to everyone INCLUDING the sender
     io.to(data.room).emit('chat message', data);
+  });
+
+  socket.on('disconnect', () => {
+    console.log('User disconnected');
   });
 });
 
 const PORT = process.env.PORT || 10000;
-http.listen(PORT, () => {
+http.listen(PORT, '0.0.0.0', () => {
   console.log('Server is running on port ' + PORT);
 });
