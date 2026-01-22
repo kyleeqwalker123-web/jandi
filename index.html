@@ -2,70 +2,114 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>J & I Secure Chat</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>J & I Secure</title>
     <style>
-        body { font-family: -apple-system, sans-serif; background: #000; color: white; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        #setup { position: fixed; inset: 0; background: #000; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; }
-        #chat { display: none; flex-direction: column; height: 100vh; }
+        :root { --blue: #007bff; --red: #ff4757; --bg: #000; --panel: #111; }
         
-        /* Mood & Buzz Header */
-        .top-bar { background: #111; padding: 10px; border-bottom: 1px solid #333; display: flex; align-items: center; justify-content: space-between; }
-        .mood-display { font-size: 24px; margin-right: 10px; }
-        .mood-options span { cursor: pointer; margin: 0 5px; font-size: 20px; transition: 0.2s; }
-        .mood-options span:hover { transform: scale(1.3); }
-        .buzz-btn { background: #ff4757; color: white; border: none; padding: 5px 12px; border-radius: 5px; font-weight: bold; cursor: pointer; }
-
-        /* Shake Animation */
-        .shake { animation: shake 0.5s; background-color: #400 !important; }
-        @keyframes shake {
-            0% { transform: translate(1px, 1px) rotate(0deg); }
-            10% { transform: translate(-1px, -2px) rotate(-1deg); }
-            20% { transform: translate(-3px, 0px) rotate(1deg); }
-            30% { transform: translate(3px, 2px) rotate(0deg); }
-            40% { transform: translate(1px, -1px) rotate(1deg); }
-            50% { transform: translate(-1px, 2px) rotate(-1deg); }
-            100% { transform: translate(1px, 1px) rotate(0deg); }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica; 
+            background: var(--bg); color: white; margin: 0; padding: 0;
+            height: 100vh; width: 100vw; overflow: hidden; position: fixed;
         }
 
-        #messages { flex-grow: 1; overflow-y: auto; list-style: none; padding: 20px; margin: 0; display: flex; flex-direction: column; }
-        .msg { padding: 10px 15px; border-radius: 18px; margin: 5px 0; max-width: 75%; word-wrap: break-word; }
-        .my-msg { background: #007bff; align-self: flex-end; }
-        .their-msg { background: #333; align-self: flex-start; }
+        /* Login Screen */
+        #setup { 
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            height: 100%; padding: 30px; text-align: center;
+        }
+        #setup input, #setup select {
+            width: 100%; max-width: 300px; padding: 15px; margin: 8px 0;
+            background: #222; border: 1px solid #333; color: white; border-radius: 12px; font-size: 16px;
+        }
+
+        /* Chat Layout */
+        #chat { display: none; flex-direction: column; height: 100vh; }
         
-        .input-area { display: flex; background: #111; padding: 15px; border-top: 1px solid #222; }
-        #input { flex-grow: 1; background: #222; color: white; border: none; padding: 12px; border-radius: 8px; margin-right: 10px; }
-        .send-btn { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; }
+        .top-bar { 
+            background: var(--panel); padding: 10px 15px; 
+            display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 1px solid #222;
+        }
+
+        .mood-options { display: flex; gap: 10px; }
+        .mood-options span { font-size: 22px; cursor: pointer; }
+
+        #messages { 
+            flex-grow: 1; overflow-y: auto; padding: 15px; 
+            display: flex; flex-direction: column; gap: 8px;
+            -webkit-overflow-scrolling: touch; /* Smooth scrolling for iOS */
+        }
+
+        /* Message Bubbles */
+        .msg { 
+            padding: 12px 16px; border-radius: 20px; max-width: 85%; 
+            word-wrap: break-word; font-size: 16px; line-height: 1.4;
+        }
+        .label { font-size: 10px; font-weight: bold; margin-bottom: 4px; display: block; opacity: 0.7; }
+        
+        .my-msg { background: var(--blue); align-self: flex-end; border-bottom-right-radius: 4px; }
+        .their-msg { background: #2c2c2e; align-self: flex-start; border-bottom-left-radius: 4px; }
+
+        /* Input Area (Bottom) */
+        .input-area { 
+            background: var(--panel); padding: 12px 15px 30px 15px; /* Extra bottom padding for home bars */
+            display: flex; align-items: center; gap: 10px;
+            border-top: 1px solid #222;
+        }
+        #input { 
+            flex-grow: 1; background: #222; border: none; color: white; 
+            padding: 12px 15px; border-radius: 25px; font-size: 16px; outline: none;
+        }
+        .send-btn { 
+            background: var(--blue); color: white; border: none; 
+            width: 45px; height: 45px; border-radius: 50%; font-weight: bold;
+        }
+
+        /* Buzz Animation */
+        .shake { animation: shake 0.4s; }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20% { transform: translateX(-10px); background: #400; }
+            40% { transform: translateX(10px); }
+            60% { transform: translateX(-10px); }
+            80% { transform: translateX(10px); }
+        }
     </style>
 </head>
 <body id="mainBody">
 
     <div id="setup">
-        <h2>J & I Secure</h2>
-        <select id="userSelect" style="padding:10px; margin-bottom:10px;"><option value="J">I am J</option><option value="I">I am I</option></select>
-        <input type="text" id="roomInput" placeholder="Room Name" style="padding:10px; margin-bottom:10px;">
-        <input type="password" id="passInput" placeholder="Password" style="padding:10px; margin-bottom:10px;">
-        <button onclick="join()" style="width:200px; background:#007bff; color:white; padding:10px; border-radius:5px; border:none; font-weight:bold;">Enter Chat</button>
+        <h1 style="margin-bottom: 5px;">J & I</h1>
+        <p style="color: #666; margin-bottom: 20px;">Secure Mobile Messaging</p>
+        <select id="userSelect">
+            <option value="J">I am J</option>
+            <option value="I">I am I</option>
+        </select>
+        <input type="text" id="roomInput" placeholder="Room Name" spellcheck="false">
+        <input type="password" id="passInput" placeholder="Password">
+        <button onclick="join()" style="width: 100%; max-width: 300px; padding: 15px; border-radius: 12px; background: var(--blue); border: none; color: white; font-weight: bold; margin-top: 10px;">Login</button>
     </div>
 
     <div id="chat">
         <div class="top-bar">
-            <div style="display: flex; align-items: center;">
-                <div id="currentMood" class="mood-display">😊</div>
-                <div class="mood-options">
-                    <span onclick="setMood('😊')">😊</span>
-                    <span onclick="setMood('😴')">😴</span>
-                    <span onclick="setMood('🔥')">🔥</span>
-                    <span onclick="setMood('💩')">💩</span>
-                    <span onclick="setMood('✨')">✨</span>
-                </div>
+            <div id="currentMood" style="font-size: 24px; margin-right: 10px;">😊</div>
+            <div class="mood-options">
+                <span onclick="setMood('😊')">😊</span>
+                <span onclick="setMood('😴')">😴</span>
+                <span onclick="setMood('🔥')">🔥</span>
+                <span onclick="setMood('✨')">✨</span>
             </div>
-            <button class="buzz-btn" onclick="sendBuzz()">BUZZ ⚡</button>
+            <button onclick="sendBuzz()" style="background:var(--red); border:none; color:white; padding:8px 12px; border-radius:8px; font-weight:bold; font-size:12px;">BUZZ</button>
         </div>
 
         <ul id="messages"></ul>
+
         <form id="form" class="input-area">
-            <input id="input" autocomplete="off" placeholder="Message..."><button class="send-btn">Send</button>
+            <input id="input" autocomplete="off" placeholder="Message..." enterkeyhint="send">
+            <button class="send-btn">↑</button>
         </form>
     </div>
 
@@ -86,20 +130,17 @@
             }
         }
 
-        // MOOD & BUZZ LOGIC
         function setMood(m) { socket.emit('change mood', { room: currentRoom, mood: m }); }
         function sendBuzz() { socket.emit('send buzz', currentRoom); }
 
         socket.on('update mood', (m) => { document.getElementById('currentMood').innerText = m; });
         
         socket.on('get buzzed', () => {
-            const body = document.getElementById('mainBody');
-            body.classList.add('shake');
-            setTimeout(() => body.classList.remove('shake'), 500);
-            // Optional: play a small sound if you want later
+            document.body.classList.add('shake');
+            if ('vibrate' in navigator) navigator.vibrate(200); // Phone vibrates on Buzz
+            setTimeout(() => document.body.classList.remove('shake'), 400);
         });
 
-        // STANDARD CHAT LOGIC
         document.getElementById('form').onsubmit = (e) => {
             e.preventDefault();
             const input = document.getElementById('input');
@@ -112,8 +153,9 @@
         socket.on('chat message', (data) => {
             const item = document.createElement('li');
             item.className = data.user === myLabel ? 'msg my-msg' : 'msg their-msg';
-            item.innerHTML = `<span style="font-size:10px; opacity:0.5; display:block;">${data.user}</span>${data.msg}`;
+            item.innerHTML = `<span class="label">${data.user}</span>${data.msg}`;
             document.getElementById('messages').appendChild(item);
+            window.scrollTo(0, 0); // Fixes keyboard jumping
             document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
         });
 
@@ -122,7 +164,7 @@
             h.forEach(msg => {
                 const item = document.createElement('li');
                 item.className = msg.user === myLabel ? 'msg my-msg' : 'msg their-msg';
-                item.innerHTML = `<span style="font-size:10px; opacity:0.5; display:block;">${msg.user}</span>${msg.msg}`;
+                item.innerHTML = `<span class="label">${msg.user}</span>${msg.msg}`;
                 document.getElementById('messages').appendChild(item);
             });
             document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
