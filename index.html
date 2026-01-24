@@ -1,84 +1,70 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>J & I Hub</title>
     <style>
-        :root { --accent: #ff758c; --glass: rgba(255, 255, 255, 0.15); }
-        body { font-family: -apple-system, sans-serif; background: #121212; color: white; margin: 0; height: 100dvh; overflow: hidden; }
+        :root { --accent: #ff4757; }
+        body { font-family: sans-serif; background: #121212; color: white; margin: 0; height: 100dvh; overflow: hidden; }
         
         /* Setup */
         #setup { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%; gap: 15px; }
         .card { background: #1e1e1e; padding: 30px; border-radius: 20px; display: flex; flex-direction: column; gap: 10px; width: 300px; }
-        input, select { padding: 12px; border-radius: 10px; border: none; background: #333; color: white; }
-        .btn { background: var(--accent); color: white; border: none; padding: 15px; border-radius: 10px; font-weight: bold; }
+        input, select { padding: 12px; border-radius: 10px; border: 1px solid #333; background: #333; color: white; }
 
-        /* Hub Layout */
+        /* Hub */
         #hub { display: none; flex-direction: column; height: 100%; }
-        #status-bar { background: #000; padding: 10px; display: flex; justify-content: space-around; font-size: 12px; border-bottom: 1px solid #333; }
-        .dot { height: 8px; width: 8px; border-radius: 50%; display: inline-block; background: #555; margin-right: 5px; }
-        .online .dot { background: #2ecc71; box-shadow: 0 0 8px #2ecc71; }
-
-        #video-player { width: 100%; height: 0; transition: 0.3s; background: #000; overflow: hidden; }
-        #messages { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; list-style: none; margin: 0; }
-        .msg { padding: 10px 15px; border-radius: 15px; max-width: 80%; word-wrap: break-word; }
+        #messages { flex: 1; overflow-y: auto; padding: 15px; list-style: none; margin: 0; display: flex; flex-direction: column; gap: 10px; }
+        .msg { padding: 10px 15px; border-radius: 15px; max-width: 80%; background: #333; }
         .my-msg { background: var(--accent); align-self: flex-end; }
-        .their-msg { background: #333; align-self: flex-start; }
-        .msg img { width: 100%; border-radius: 10px; margin-top: 5px; }
-
-        .input-area { background: #1e1e1e; padding: 15px; display: flex; gap: 10px; }
-        #m-input { flex: 1; padding: 12px; border-radius: 20px; border: none; background: #333; color: white; }
-
-        /* Doodle */
-        #canvas-wrap { display: none; position: fixed; inset: 0; background: white; z-index: 2000; flex-direction: column; }
-        canvas { flex: 1; touch-action: none; }
         
-        #animation-layer { position: fixed; inset: 0; pointer-events: none; z-index: 1000; }
+        .toolbar { display: flex; gap: 10px; padding: 10px; background: #1a1a1a; overflow-x: auto; }
+        .tool-btn { background: #333; border: none; color: white; padding: 8px 15px; border-radius: 8px; font-size: 12px; white-space: nowrap; }
+
+        /* Trivia Overlay */
+        #trivia-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 5000; flex-direction: column; align-items: center; justify-content: center; }
+        .trivia-card { background: #1e1e1e; border: 2px solid var(--accent); padding: 30px; border-radius: 20px; text-align: center; width: 85%; }
+        
+        #video-box { height: 0; transition: 0.3s; background: #000; }
     </style>
 </head>
 <body>
-    <div id="animation-layer"></div>
 
     <div id="setup">
-        <h1 style="color:var(--accent)">J & I HUB</h1>
+        <h2 style="color:var(--accent)">ENTER HUB</h2>
         <div class="card">
             <select id="userSel"><option value="J">J</option><option value="I">I</option></select>
             <input type="text" id="roomName" placeholder="Room Name">
-            <button class="btn" onclick="join()">ENTER HUB</button>
+            <input type="password" id="pass" placeholder="Passcode (1234)">
+            <button onclick="join()" style="background:var(--accent); color:white; border:none; padding:15px; border-radius:10px;">ENTER</button>
         </div>
     </div>
 
     <div id="hub">
-        <div id="status-bar">
-            <div id="st-J"><span class="dot"></span> J: OFF</div>
-            <div id="st-I"><span class="dot"></span> I: OFF</div>
-        </div>
+        <div id="video-box"><div id="player" style="width:100%; height:200px;"></div></div>
         
-        <div id="video-player"><div id="yt-frame" style="width:100%; height:200px;"></div></div>
-
-        <div style="padding:10px; display:flex; gap:10px; overflow-x:auto; background:#111;">
-            <button onclick="openDoodle()" style="background:#333; color:white; border:none; border-radius:8px; padding:5px 15px;">🎨 Doodle</button>
-            <button onclick="askVideo()" style="background:#333; color:white; border:none; border-radius:8px; padding:5px 15px;">📺 YouTube</button>
-            <button onclick="socket.emit('heart_burst', currentRoom)" style="background:#333; border:none; border-radius:8px; padding:5px 15px;">💖</button>
+        <div class="toolbar">
+            <button class="tool-btn" onclick="askVideo()">📺 Sync Video</button>
+            <button class="tool-btn" style="background:#6a11cb" onclick="openTrivia()">🔞 Trivia Game</button>
+            <button class="tool-btn" onclick="sendImg()">🖼️ Photo</button>
         </div>
 
         <ul id="messages"></ul>
-        <div id="typing" style="padding-left:15px; font-size:10px; color:var(--accent); height:15px;"></div>
 
-        <div class="input-area">
-            <button onclick="document.getElementById('fileIn').click()" style="background:none; border:none; font-size:20px;">🖼️</button>
-            <input type="file" id="fileIn" style="display:none" onchange="sendFile(this)">
-            <input id="m-input" placeholder="Message..." oninput="isTyping()">
-            <button onclick="send()" style="background:var(--accent); border:none; color:white; padding:10px 20px; border-radius:20px;">Send</button>
+        <div style="padding:15px; display:flex; gap:10px; background:#1e1e1e;">
+            <input id="m-input" style="flex:1" placeholder="Type a message...">
+            <button onclick="send()" style="background:var(--accent); border:none; color:white; padding:10px 20px; border-radius:10px;">Send</button>
         </div>
     </div>
 
-    <div id="canvas-wrap">
-        <canvas id="canv"></canvas>
-        <div style="padding:20px; display:flex; justify-content:space-around; background:#eee;">
-            <button onclick="closeDoodle()" style="padding:10px 30px; border-radius:10px; border:none;">Cancel</button>
-            <button onclick="sendDoodle()" style="padding:10px 30px; background:var(--accent); color:white; border-radius:10px; border:none;">Send</button>
+    <div id="trivia-overlay">
+        <div class="trivia-card">
+            <p id="trivia-text" style="filter:blur(10px); font-size:18px;">Question hidden...</p>
+            <button id="rev-btn" onclick="socket.emit('reveal_trivia', currentRoom)" style="background:var(--accent); color:white; border:none; padding:10px 20px; border-radius:10px; margin-top:10px;">REVEAL</button>
+        </div>
+        <div style="margin-top:20px; display:flex; gap:10px;">
+            <button onclick="nextTrivia()" style="background:#6a11cb; color:white; border:none; padding:10px; border-radius:8px;">Next Question</button>
+            <button onclick="document.getElementById('trivia-overlay').style.display='none'" style="background:#444; color:white; border:none; padding:10px; border-radius:8px;">Close</button>
         </div>
     </div>
 
@@ -86,96 +72,60 @@
     <script src="https://www.youtube.com/iframe_api"></script>
     <script>
         const socket = io();
-        let currentRoom, myUser, player;
+        let currentRoom, myUser, ytPlayer;
 
         function join() {
+            if(document.getElementById('pass').value !== "1234") return alert("Wrong code");
             currentRoom = document.getElementById('roomName').value;
             myUser = document.getElementById('userSel').value;
-            if(currentRoom) {
-                document.getElementById('setup').style.display = 'none';
-                document.getElementById('hub').style.display = 'flex';
-                socket.emit('join room', { room: currentRoom, user: myUser });
-            }
+            document.getElementById('setup').style.display = 'none';
+            document.getElementById('hub').style.display = 'flex';
+            socket.emit('join room', { room: currentRoom, user: myUser });
         }
 
         function send() {
-            const val = document.getElementById('m-input').value;
-            if(val) {
-                socket.emit('chat message', { room: currentRoom, user: myUser, msg: val });
-                document.getElementById('m-input').value = '';
-            }
+            const m = document.getElementById('m-input').value;
+            if(m) { socket.emit('chat message', { room: currentRoom, user: myUser, msg: m }); document.getElementById('m-input').value = ''; }
         }
 
-        socket.on('chat message', data => {
+        socket.on('chat message', d => {
             const li = document.createElement('li');
-            li.className = 'msg ' + (data.user === myUser ? 'my-msg' : 'their-msg');
-            li.innerHTML = `<small style="display:block;opacity:0.6">${data.user}</small>`;
-            if(data.msg) li.innerHTML += `<div>${data.msg}</div>`;
-            if(data.image) li.innerHTML += `<img src="${data.image}">`;
+            li.className = 'msg ' + (d.user === myUser ? 'my-msg' : '');
+            li.innerHTML = `<small style="opacity:0.5">${d.user}</small><br>${d.msg}`;
             document.getElementById('messages').appendChild(li);
-            document.getElementById('messages').scrollTop = 99999;
+            document.getElementById('messages').scrollTop = 9999;
         });
 
-        socket.on('load history', h => h.forEach(d => socket.emit('chat message', d)));
-
-        socket.on('status_update', users => {
-            ['J', 'I'].forEach(u => {
-                const el = document.getElementById('st-'+u);
-                el.className = users[u] === 'online' ? 'online' : 'offline';
-                el.innerHTML = `<span class="dot"></span> ${u}: ${users[u].toUpperCase()}`;
-            });
-        });
-
-        // --- YouTube ---
-        function onYouTubeIframeAPIReady() { player = new YT.Player('yt-frame'); }
+        // YouTube
+        function onYouTubeIframeAPIReady() { ytPlayer = new YT.Player('player'); }
         function askVideo() {
-            const url = prompt("YouTube Link:");
+            const url = prompt("Paste YouTube URL:");
             if(url) {
                 const id = url.split('v=')[1]?.split('&')[0] || url.split('/').pop();
                 socket.emit('sync video', { room: currentRoom, id });
             }
         }
         socket.on('sync video', d => {
-            document.getElementById('video-player').style.height = '200px';
-            player.loadVideoById(d.id);
+            document.getElementById('video-box').style.height = '200px';
+            ytPlayer.loadVideoById(d.id);
         });
 
-        // --- Doodle ---
-        const canv = document.getElementById('canv');
-        const ctx = canv.getContext('2d');
-        let drawing = false;
-        function openDoodle() { 
-            document.getElementById('canvas-wrap').style.display = 'flex';
-            canv.width = window.innerWidth; canv.height = window.innerHeight - 100;
-            ctx.lineWidth = 5; ctx.lineCap = 'round'; ctx.strokeStyle = '#000';
+        // Trivia
+        const questions = ["What is your secret turn-on?", "Most embarrassing memory?", "One thing you want to try together?"];
+        function openTrivia() { document.getElementById('trivia-overlay').style.display = 'flex'; }
+        function nextTrivia() {
+            const q = questions[Math.floor(Math.random()*questions.length)];
+            socket.emit('sync_trivia', { room: currentRoom, text: q });
         }
-        function closeDoodle() { document.getElementById('canvas-wrap').style.display = 'none'; ctx.clearRect(0,0,canv.width,canv.height); }
-        canv.addEventListener('touchstart', e => { drawing = true; const t = e.touches[0]; ctx.beginPath(); ctx.moveTo(t.clientX, t.clientY); });
-        canv.addEventListener('touchmove', e => { if(drawing) { const t = e.touches[0]; ctx.lineTo(t.clientX, t.clientY); ctx.stroke(); } });
-        canv.addEventListener('touchend', () => drawing = false);
-        function sendDoodle() {
-            socket.emit('chat message', { room: currentRoom, user: myUser, image: canv.toDataURL(), msg: "Sent a doodle 🎨" });
-            closeDoodle();
-        }
-
-        function sendFile(input) {
-            const reader = new FileReader();
-            reader.onload = e => socket.emit('chat message', { room: currentRoom, user: myUser, image: e.target.result });
-            reader.readAsDataURL(input.files[0]);
-        }
-
-        function isTyping() { socket.emit('typing', { room: currentRoom, user: myUser, active: true }); }
-        socket.on('typing', d => document.getElementById('typing').innerText = d.active ? d.user + ' is typing...' : '');
-        
-        socket.on('heart_burst', () => {
-            for(let i=0; i<10; i++) {
-                const h = document.createElement('div'); h.innerHTML = '💖';
-                h.style.position = 'fixed'; h.style.bottom = '0'; h.style.left = Math.random()*100+'vw';
-                h.style.fontSize = '24px'; h.style.transition = '2s';
-                document.getElementById('animation-layer').appendChild(h);
-                setTimeout(() => { h.style.transform = 'translateY(-100vh)'; h.style.opacity = '0'; }, 50);
-                setTimeout(() => h.remove(), 2000);
-            }
+        socket.on('receive_trivia', d => {
+            openTrivia();
+            document.getElementById('trivia-text').innerText = d.text;
+            document.getElementById('trivia-text').style.filter = 'blur(10px)';
+            document.getElementById('rev-btn').style.display = 'block';
+        });
+        socket.on('reveal_trivia', () => {
+            document.getElementById('trivia-text').style.filter = 'none';
+            document.getElementById('rev-btn').style.display = 'none';
         });
     </script>
 </body>
