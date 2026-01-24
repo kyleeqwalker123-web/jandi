@@ -2,100 +2,83 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Cineby Hub</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>J & I Hub</title>
     <style>
-        * { box-sizing: border-box; }
-        body { margin: 0; background: #000; color: white; font-family: -apple-system, sans-serif; overflow: hidden; height: 100dvh; }
+        :root { --accent: #ff758c; --glass: rgba(255, 255, 255, 0.15); }
+        body { font-family: -apple-system, sans-serif; background: #121212; color: white; margin: 0; height: 100dvh; overflow: hidden; }
         
-        /* --- SCREENS --- */
-        .screen { position: fixed; inset: 0; z-index: 1000; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #000; transition: 0.5s; }
-        input { background: #1a1a1a; border: 1px solid #333; color: white; padding: 15px; border-radius: 12px; width: 280px; margin: 10px; text-align: center; font-size: 16px; }
-        .btn { background: #ff4757; color: white; border: none; padding: 15px 40px; border-radius: 12px; font-weight: bold; cursor: pointer; }
+        /* Setup */
+        #setup { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%; gap: 15px; }
+        .card { background: #1e1e1e; padding: 30px; border-radius: 20px; display: flex; flex-direction: column; gap: 10px; width: 300px; }
+        input, select { padding: 12px; border-radius: 10px; border: none; background: #333; color: white; }
+        .btn { background: var(--accent); color: white; border: none; padding: 15px; border-radius: 10px; font-weight: bold; }
 
-        /* --- MAIN HUB --- */
-        #hub { display: none; flex-direction: column; height: 100%; position: relative; }
-        #video-container { flex: 1; background: #000; position: relative; }
-        #player { width: 100%; height: 100%; }
+        /* Hub Layout */
+        #hub { display: none; flex-direction: column; height: 100%; }
+        #status-bar { background: #000; padding: 10px; display: flex; justify-content: space-around; font-size: 12px; border-bottom: 1px solid #333; }
+        .dot { height: 8px; width: 8px; border-radius: 50%; display: inline-block; background: #555; margin-right: 5px; }
+        .online .dot { background: #2ecc71; box-shadow: 0 0 8px #2ecc71; }
 
-        /* --- CHAT DRAWER --- */
-        #chat-drawer {
-            position: absolute; right: 0; top: 0; bottom: 100px; width: 280px;
-            background: rgba(10, 10, 10, 0.9); backdrop-filter: blur(15px);
-            transform: translateX(100%); transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            z-index: 2000; border-left: 1px solid #333; display: flex; flex-direction: column;
-        }
-        #chat-drawer.open { transform: translateX(0); }
-        #msg-list { flex: 1; overflow-y: auto; padding: 15px; list-style: none; margin: 0; font-size: 13px; }
-        .msg-item { margin-bottom: 10px; padding: 8px 12px; background: rgba(255,255,255,0.1); border-radius: 10px; width: fit-content; max-width: 90%; }
+        #video-player { width: 100%; height: 0; transition: 0.3s; background: #000; overflow: hidden; }
+        #messages { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; list-style: none; margin: 0; }
+        .msg { padding: 10px 15px; border-radius: 15px; max-width: 80%; word-wrap: break-word; }
+        .my-msg { background: var(--accent); align-self: flex-end; }
+        .their-msg { background: #333; align-self: flex-start; }
+        .msg img { width: 100%; border-radius: 10px; margin-top: 5px; }
 
-        /* --- UI OVERLAYS --- */
-        #reaction-layer { position: absolute; inset: 0; pointer-events: none; z-index: 10; }
-        .emoji { position: absolute; bottom: -50px; font-size: 40px; animation: floatUp 2.5s forwards; }
-        @keyframes floatUp { to { transform: translateY(-110vh) translateX(var(--drift)); opacity: 0; } }
+        .input-area { background: #1e1e1e; padding: 15px; display: flex; gap: 10px; }
+        #m-input { flex: 1; padding: 12px; border-radius: 20px; border: none; background: #333; color: white; }
 
-        .bottom-bar { background: #111; padding: 15px; z-index: 3000; border-top: 1px solid #222; }
-        .deck { display: flex; justify-content: space-between; align-items: center; }
+        /* Doodle */
+        #canvas-wrap { display: none; position: fixed; inset: 0; background: white; z-index: 2000; flex-direction: column; }
+        canvas { flex: 1; touch-action: none; }
         
-        /* --- TRIVIA --- */
-        #trivia-box { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 5000; flex-direction: column; align-items: center; justify-content: center; }
-        .card { background: #1a1a1a; padding: 40px; border-radius: 30px; border: 2px solid #ff4757; text-align: center; max-width: 320px; }
+        #animation-layer { position: fixed; inset: 0; pointer-events: none; z-index: 1000; }
     </style>
 </head>
 <body>
+    <div id="animation-layer"></div>
 
-    <div id="gate" class="screen">
-        <h1 style="letter-spacing:10px; font-weight:100;">CINEBY</h1>
-        <input type="password" id="gateCode" placeholder="ENTER CODE" oninput="checkGate(this.value)">
-    </div>
-
-    <div id="login" class="screen" style="display:none;">
-        <h2 style="color:#ff4757">Who are you?</h2>
-        <select id="userLabel" style="padding:15px; width:280px; background:#1a1a1a; color:white; border-radius:12px; border:1px solid #333;">
-            <option value="J">J</option>
-            <option value="I">I</option>
-        </select>
-        <input type="text" id="roomName" placeholder="Room Name">
-        <button class="btn" onclick="startHub()" style="margin-top:20px;">START</button>
+    <div id="setup">
+        <h1 style="color:var(--accent)">J & I HUB</h1>
+        <div class="card">
+            <select id="userSel"><option value="J">J</option><option value="I">I</option></select>
+            <input type="text" id="roomName" placeholder="Room Name">
+            <button class="btn" onclick="join()">ENTER HUB</button>
+        </div>
     </div>
 
     <div id="hub">
-        <div id="video-container">
-            <div id="player"></div>
-            <div id="reaction-layer"></div>
-            <button onclick="toggleChat()" style="position:absolute; top:20px; right:20px; z-index:100; background:rgba(255,255,255,0.2); border:none; color:white; padding:10px; border-radius:8px;">💬 Chat</button>
+        <div id="status-bar">
+            <div id="st-J"><span class="dot"></span> J: OFF</div>
+            <div id="st-I"><span class="dot"></span> I: OFF</div>
+        </div>
+        
+        <div id="video-player"><div id="yt-frame" style="width:100%; height:200px;"></div></div>
+
+        <div style="padding:10px; display:flex; gap:10px; overflow-x:auto; background:#111;">
+            <button onclick="openDoodle()" style="background:#333; color:white; border:none; border-radius:8px; padding:5px 15px;">🎨 Doodle</button>
+            <button onclick="askVideo()" style="background:#333; color:white; border:none; border-radius:8px; padding:5px 15px;">📺 YouTube</button>
+            <button onclick="socket.emit('heart_burst', currentRoom)" style="background:#333; border:none; border-radius:8px; padding:5px 15px;">💖</button>
         </div>
 
-        <div id="chat-drawer">
-            <ul id="msg-list"></ul>
-            <div style="padding:10px; display:flex; gap:5px;">
-                <input type="text" id="chatInput" style="width:100%; margin:0; font-size:12px;" placeholder="Say something...">
-                <button onclick="sendMsg()" style="background:#ff4757; border:none; color:white; border-radius:8px; padding:0 10px;">↑</button>
-            </div>
-        </div>
+        <ul id="messages"></ul>
+        <div id="typing" style="padding-left:15px; font-size:10px; color:var(--accent); height:15px;"></div>
 
-        <div class="bottom-bar">
-            <input type="text" id="yt-url" style="width:100%; margin:0 0 10px 0; font-size:12px;" placeholder="Paste YouTube Link...">
-            <div class="deck">
-                <div style="display:flex; gap:10px;">
-                    <button class="btn" style="padding:10px 15px; background:#333;" onclick="react('😂')">😂</button>
-                    <button class="btn" style="padding:10px 15px; background:#333;" onclick="react('🔥')">🔥</button>
-                    <button class="btn" style="padding:10px 15px; background:#333;" onclick="react('😱')">😱</button>
-                </div>
-                <button class="btn" style="background:linear-gradient(to right, #6a11cb, #2575fc); padding:10px 15px;" onclick="openTrivia()">GAMES 🔞</button>
-                <button class="btn" style="padding:10px 15px; background:red;" onclick="loadVideo()">LOAD</button>
-            </div>
+        <div class="input-area">
+            <button onclick="document.getElementById('fileIn').click()" style="background:none; border:none; font-size:20px;">🖼️</button>
+            <input type="file" id="fileIn" style="display:none" onchange="sendFile(this)">
+            <input id="m-input" placeholder="Message..." oninput="isTyping()">
+            <button onclick="send()" style="background:var(--accent); border:none; color:white; padding:10px 20px; border-radius:20px;">Send</button>
         </div>
     </div>
 
-    <div id="trivia-box">
-        <div class="card">
-            <p id="trivia-text" style="filter:blur(10px);">Question hidden...</p>
-            <button id="rev-btn" class="btn" onclick="socket.emit('reveal_trivia', room)">REVEAL</button>
-        </div>
-        <div style="margin-top:20px;">
-            <button class="btn" style="background:#6a11cb" onclick="nextTrivia('spicy')">Next Spicy</button>
-            <button class="btn" style="background:#333" onclick="closeTrivia()">Close</button>
+    <div id="canvas-wrap">
+        <canvas id="canv"></canvas>
+        <div style="padding:20px; display:flex; justify-content:space-around; background:#eee;">
+            <button onclick="closeDoodle()" style="padding:10px 30px; border-radius:10px; border:none;">Cancel</button>
+            <button onclick="sendDoodle()" style="padding:10px 30px; background:var(--accent); color:white; border-radius:10px; border:none;">Send</button>
         </div>
     </div>
 
@@ -103,90 +86,96 @@
     <script src="https://www.youtube.com/iframe_api"></script>
     <script>
         const socket = io();
-        let room, user, player;
+        let currentRoom, myUser, player;
 
-        function checkGate(val) {
-            if(val === "1234") { // Your Code
-                document.getElementById('gate').style.display = 'none';
-                document.getElementById('login').style.display = 'flex';
-            }
-        }
-
-        function startHub() {
-            room = document.getElementById('roomName').value;
-            user = document.getElementById('userLabel').value;
-            if(room) {
-                document.getElementById('login').style.display = 'none';
+        function join() {
+            currentRoom = document.getElementById('roomName').value;
+            myUser = document.getElementById('userSel').value;
+            if(currentRoom) {
+                document.getElementById('setup').style.display = 'none';
                 document.getElementById('hub').style.display = 'flex';
-                socket.emit('join', { room, user });
+                socket.emit('join room', { room: currentRoom, user: myUser });
             }
         }
 
-        function onYouTubeIframeAPIReady() {
-            player = new YT.Player('player', {
-                videoId: 'dQw4w9WgXcQ',
-                playerVars: { 'autoplay': 1, 'playsinline': 1 },
-                events: { 'onStateChange': (e) => {
-                    if (e.data == 1) socket.emit('video_action', { room, action: 'play' });
-                    if (e.data == 2) socket.emit('video_action', { room, action: 'pause' });
-                }}
-            });
-        }
-
-        function loadVideo() {
-            const url = document.getElementById('yt-url').value;
-            const id = url.split('v=')[1]?.split('&')[0] || url.split('/').pop();
-            if(id) socket.emit('video_change', { room, id });
-        }
-
-        socket.on('video_change', id => player.loadVideoById(id));
-        socket.on('video_action', a => a === 'play' ? player.playVideo() : player.pauseVideo());
-
-        // --- CHAT LOGIC ---
-        function toggleChat() { document.getElementById('chat-drawer').classList.toggle('open'); }
-        function sendMsg() {
-            const m = document.getElementById('chatInput').value;
-            if(m) {
-                socket.emit('chat_msg', { room, user, msg: m });
-                document.getElementById('chatInput').value = '';
+        function send() {
+            const val = document.getElementById('m-input').value;
+            if(val) {
+                socket.emit('chat message', { room: currentRoom, user: myUser, msg: val });
+                document.getElementById('m-input').value = '';
             }
         }
-        socket.on('chat_msg', d => {
+
+        socket.on('chat message', data => {
             const li = document.createElement('li');
-            li.className = 'msg-item';
-            li.innerHTML = `<b>${d.user}:</b> ${d.msg}`;
-            document.getElementById('msg-list').appendChild(li);
-            document.getElementById('msg-list').scrollTop = 9999;
-        });
-        socket.on('load_history', h => h.forEach(d => socket.emit('chat_msg', d))); // Trick to trigger local draw
-
-        // --- REACTIONS & TRIVIA ---
-        function react(emoji) { socket.emit('send_reaction', { room, emoji }); }
-        socket.on('receive_reaction', emoji => {
-            const e = document.createElement('div');
-            e.className = 'emoji'; e.innerText = emoji;
-            e.style.left = Math.random()*80+10+'%';
-            e.style.setProperty('--drift', (Math.random()*200-100)+'px');
-            document.getElementById('reaction-layer').appendChild(e);
-            setTimeout(() => e.remove(), 2500);
+            li.className = 'msg ' + (data.user === myUser ? 'my-msg' : 'their-msg');
+            li.innerHTML = `<small style="display:block;opacity:0.6">${data.user}</small>`;
+            if(data.msg) li.innerHTML += `<div>${data.msg}</div>`;
+            if(data.image) li.innerHTML += `<img src="${data.image}">`;
+            document.getElementById('messages').appendChild(li);
+            document.getElementById('messages').scrollTop = 99999;
         });
 
-        const spicy = ["Fantasy you've never told me?", "Worst place you've ever had a crush?", "Describe me in 3 spicy words."];
-        function openTrivia() { document.getElementById('trivia-box').style.display = 'flex'; }
-        function closeTrivia() { document.getElementById('trivia-box').style.display = 'none'; }
-        function nextTrivia() {
-            const text = spicy[Math.floor(Math.random()*spicy.length)];
-            socket.emit('sync_trivia', { room, text });
+        socket.on('load history', h => h.forEach(d => socket.emit('chat message', d)));
+
+        socket.on('status_update', users => {
+            ['J', 'I'].forEach(u => {
+                const el = document.getElementById('st-'+u);
+                el.className = users[u] === 'online' ? 'online' : 'offline';
+                el.innerHTML = `<span class="dot"></span> ${u}: ${users[u].toUpperCase()}`;
+            });
+        });
+
+        // --- YouTube ---
+        function onYouTubeIframeAPIReady() { player = new YT.Player('yt-frame'); }
+        function askVideo() {
+            const url = prompt("YouTube Link:");
+            if(url) {
+                const id = url.split('v=')[1]?.split('&')[0] || url.split('/').pop();
+                socket.emit('sync video', { room: currentRoom, id });
+            }
         }
-        socket.on('receive_trivia', d => {
-            openTrivia();
-            document.getElementById('trivia-text').innerText = d.text;
-            document.getElementById('trivia-text').style.filter = 'blur(10px)';
-            document.getElementById('rev-btn').style.display = 'block';
+        socket.on('sync video', d => {
+            document.getElementById('video-player').style.height = '200px';
+            player.loadVideoById(d.id);
         });
-        socket.on('reveal_trivia', () => {
-            document.getElementById('trivia-text').style.filter = 'none';
-            document.getElementById('rev-btn').style.display = 'none';
+
+        // --- Doodle ---
+        const canv = document.getElementById('canv');
+        const ctx = canv.getContext('2d');
+        let drawing = false;
+        function openDoodle() { 
+            document.getElementById('canvas-wrap').style.display = 'flex';
+            canv.width = window.innerWidth; canv.height = window.innerHeight - 100;
+            ctx.lineWidth = 5; ctx.lineCap = 'round'; ctx.strokeStyle = '#000';
+        }
+        function closeDoodle() { document.getElementById('canvas-wrap').style.display = 'none'; ctx.clearRect(0,0,canv.width,canv.height); }
+        canv.addEventListener('touchstart', e => { drawing = true; const t = e.touches[0]; ctx.beginPath(); ctx.moveTo(t.clientX, t.clientY); });
+        canv.addEventListener('touchmove', e => { if(drawing) { const t = e.touches[0]; ctx.lineTo(t.clientX, t.clientY); ctx.stroke(); } });
+        canv.addEventListener('touchend', () => drawing = false);
+        function sendDoodle() {
+            socket.emit('chat message', { room: currentRoom, user: myUser, image: canv.toDataURL(), msg: "Sent a doodle 🎨" });
+            closeDoodle();
+        }
+
+        function sendFile(input) {
+            const reader = new FileReader();
+            reader.onload = e => socket.emit('chat message', { room: currentRoom, user: myUser, image: e.target.result });
+            reader.readAsDataURL(input.files[0]);
+        }
+
+        function isTyping() { socket.emit('typing', { room: currentRoom, user: myUser, active: true }); }
+        socket.on('typing', d => document.getElementById('typing').innerText = d.active ? d.user + ' is typing...' : '');
+        
+        socket.on('heart_burst', () => {
+            for(let i=0; i<10; i++) {
+                const h = document.createElement('div'); h.innerHTML = '💖';
+                h.style.position = 'fixed'; h.style.bottom = '0'; h.style.left = Math.random()*100+'vw';
+                h.style.fontSize = '24px'; h.style.transition = '2s';
+                document.getElementById('animation-layer').appendChild(h);
+                setTimeout(() => { h.style.transform = 'translateY(-100vh)'; h.style.opacity = '0'; }, 50);
+                setTimeout(() => h.remove(), 2000);
+            }
         });
     </script>
 </body>
