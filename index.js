@@ -1,7 +1,7 @@
 const express = require('express');
 const app = express();
 const http = require('http').createServer(app);
-const io = require('socket.io')(http, { cors: { origin: "*" } });
+const io = require('socket.io')(http);
 
 app.use(express.static(__dirname));
 let roomData = {};
@@ -21,32 +21,24 @@ io.on('connection', (socket) => {
         
         roomData[room].users[user] = "online";
         io.to(room).emit('status_update', roomData[room].users);
-        
-        // Send history to the user joining
-        if (roomData[room].messages.length > 0) {
-            socket.emit('load history', roomData[room].messages);
-        }
+        socket.emit('load history', roomData[room].messages);
     });
 
     socket.on('chat message', (data) => {
-        if (roomData[data.room]) {
-            roomData[data.room].messages.push(data);
-            if (roomData[data.room].messages.length > 200) roomData[data.room].messages.shift();
-        }
+        if (roomData[data.room]) roomData[data.room].messages.push(data);
         io.to(data.room).emit('chat message', data);
     });
 
+    socket.on('sync video', (data) => io.to(data.room).emit('sync video', data));
+    socket.on('sync_trivia', (data) => io.to(data.room).emit('receive_trivia', data));
+    socket.on('reveal_trivia', (room) => io.to(room).emit('reveal_trivia'));
+    
     socket.on('disconnect', () => {
         if (userRoom && roomData[userRoom]) {
             roomData[userRoom].users[userLabel] = "offline";
             io.to(userRoom).emit('status_update', roomData[userRoom].users);
         }
     });
-
-    socket.on('typing', (data) => socket.to(data.room).emit('typing', data));
-    socket.on('sync video', (data) => io.to(data.room).emit('sync video', data));
-    socket.on('heart_burst', (room) => io.to(room).emit('heart_burst'));
 });
 
-const PORT = process.env.PORT || 10000;
-http.listen(PORT, '0.0.0.0', () => console.log('Hub Server Active'));
+http.listen(process.env.PORT || 10000, '0.0.0.0');
